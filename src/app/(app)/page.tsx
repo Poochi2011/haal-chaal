@@ -35,7 +35,10 @@ export default function HomePage() {
   const alerts = computeAlerts(parent, calls);
   const trends = computeTrends(calls);
   const status = overallStatus(alerts, trends, last);
-  const s = last?.summary;
+  // Show the latest call that has a summary (a missed call today has none).
+  const summarized = sorted.find((c) => c.summary);
+  const s = summarized?.summary;
+  const summaryIsToday = summarized?.date === isoDay(0);
   const message = msg ?? parent.message;
 
   const listen = async () => {
@@ -47,7 +50,7 @@ export default function HomePage() {
   };
 
   const checks = [
-    { label: "Medicines", icon: Pill, v: medsStatus(parent, last) },
+    { label: "Medicines", icon: Pill, v: medsStatus(parent, summarized) },
     { label: "Meals", icon: Utensils, v: s?.ate },
     { label: "Sleep", icon: Moon, v: s?.slept },
     { label: "Mood", icon: Smile, v: s?.mood },
@@ -118,7 +121,7 @@ export default function HomePage() {
           <div className="flex items-start justify-between gap-3">
             <h3 className="flex items-center gap-3 text-[20px] font-bold text-ink sm:text-[24px]">
               <Sparkles className="h-6 w-6 shrink-0 text-iris" />
-              {isToday ? "Today's summary" : last ? `Latest summary · ${prettyDate(last.date)}` : "No calls yet"}
+              {summaryIsToday ? "Today's summary" : summarized ? `Latest summary · ${prettyDate(summarized.date)}` : "No calls yet"}
             </h3>
             <span className="hidden shrink-0 rounded-full bg-lav-2 px-3 py-1 text-[13px] font-semibold text-iris sm:inline">AI summary</span>
           </div>

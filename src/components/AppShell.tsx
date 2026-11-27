@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Activity, Bell, Heart, Home, Phone, PhoneCall, Users } from "lucide-react";
 import type { ReactNode } from "react";
 import { useFamily } from "@/lib/useFamily";
 import { computeAlerts } from "@/lib/insights";
-import { isOnboarded } from "@/lib/store";
+import { isOnboarded, resetAll } from "@/lib/store";
+import { RotateCcw } from "lucide-react";
 
 const NAV = [
   { href: "/", label: "Home", icon: Home },
@@ -70,6 +71,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <p className="relative z-10 mt-3 px-2 text-center text-xs leading-relaxed text-white/55">
           Hear the exact call {parent?.callName ?? "your parent"} gets (you play the parent), or ring their real phone.
         </p>
+        <ResetDemo />
         <Hills />
       </aside>
 
@@ -107,5 +109,20 @@ function MobileTab({ href, label, short, icon: Icon, on }: (typeof NAV)[number] 
       <Icon className="h-5.5 w-5.5" />
       {short ?? label}
     </Link>
+  );
+}
+
+/** For judges: wipe everything on this device and start the app fresh. */
+function ResetDemo() {
+  const [armed, setArmed] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => { if (!armed) { setArmed(true); return; } resetAll(); window.location.href = "/welcome"; }}
+      onBlur={() => setArmed(false)}
+      className={`relative z-10 mt-auto mb-2 flex items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-[13px] font-semibold transition ${armed ? "border-alarm bg-alarm text-white" : "border-white/20 text-white/70 hover:bg-white/10 hover:text-white"}`}
+    >
+      <RotateCcw className="h-4 w-4" /> {armed ? "Tap again to erase all data" : "Reset demo (for judges)"}
+    </button>
   );
 }

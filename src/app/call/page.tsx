@@ -438,7 +438,7 @@ export default function CallPage() {
             {result ? (
               <>
                 <p className="text-[13px] font-semibold uppercase tracking-[0.16em] text-muted">What {household.childName || "the family"} will see</p>
-                {result.status === "no_answer" && <p className="mt-3 text-[18px] font-bold text-alarm">No answer. The family gets an alert.</p>}
+                {result.status === "no_answer" && <p className="mt-3 text-[18px] font-bold text-amber">Missed call. The family sees a gentle note; it only becomes an alert if calls go unanswered two days in a row.</p>}
                 {result.status === "emergency" && <p className="mt-3 text-[18px] font-bold text-alarm">Emergency alert: {result.summary?.emergencyReason ?? "serious symptom"}.</p>}
                 {alertMsg && (
                   <p className={`mt-2 rounded-2xl px-4 py-3 text-[15px] font-medium ${alertMsg.ok ? "bg-alarm-soft text-alarm" : "bg-peach text-ink-2"}`}>

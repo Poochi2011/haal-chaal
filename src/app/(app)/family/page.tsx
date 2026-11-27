@@ -164,7 +164,7 @@ function FamilyEditor() {
         )}
 
       <section className="card mt-4 p-5 sm:p-6">
-        <p className="text-[17px] font-bold text-ink">Start over</p>
+        <p className="text-[17px] font-bold text-ink">Reset all data (start over, or for judges)</p>
         <p className="mt-0.5 text-[15px] text-muted">Deletes every parent, call and setting saved on this device, then opens the welcome screen.</p>
         <button
           type="button"

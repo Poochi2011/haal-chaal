@@ -17,12 +17,23 @@ export function computeAlerts(family: Parent, calls: CallRecord[]): FamilyAlert[
     });
   }
 
+  // A single missed call is often just a busy evening: a gentle note only.
+  // Two calls in a row without an answer is a real alert.
   if (last.status === "no_answer") {
-    alerts.push({
-      level: "red",
-      title: "No answer to today's call",
-      detail: `${family.callName} did not answer after two tries. Please call, or ask a neighbour to check.`,
-    });
+    const twoInARow = recent[1]?.status === "no_answer";
+    alerts.push(
+      twoInARow
+        ? {
+            level: "red",
+            title: "No answer two days in a row",
+            detail: `${family.callName} hasn't picked up the last two calls. Please call, or ask a neighbour to check.`,
+          }
+        : {
+            level: "amber",
+            title: "Missed today's call",
+            detail: `${family.callName} didn't pick up. They might just be busy; we'll let you know if it happens again tomorrow.`,
+          },
+    );
   }
 
   // Same medicine missed on the last two calls with an answer.
