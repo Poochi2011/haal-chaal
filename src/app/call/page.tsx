@@ -41,6 +41,8 @@ export default function CallPage() {
   const [mode, setMode] = useState<Mode>("browser");
   const [phoneReady, setPhoneReady] = useState<boolean | null>(null);
   const [phoneLangs, setPhoneLangs] = useState<string[]>([]);
+  const [pinRequired, setPinRequired] = useState(false);
+  const [pin, setPin] = useState("");
   const [phase, setPhase] = useState<Phase>("ringing");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [live, setLive] = useState("");
@@ -68,7 +70,7 @@ export default function CallPage() {
     setHousehold(h);
     setParent(h.parents.find((p) => p.id === getActiveId()) ?? h.parents[0]);
     if (!speechSupported().listen) { typingRef.current = true; setTyping(true); }
-    fetch("/api/phone/config").then((r) => r.json()).then((c) => { setPhoneReady(Boolean(c.enabled)); setPhoneLangs(c.languages ?? []); }).catch(() => setPhoneReady(false));
+    fetch("/api/phone/config").then((r) => r.json()).then((c) => { setPhoneReady(Boolean(c.enabled)); setPhoneLangs(c.languages ?? []); setPinRequired(Boolean(c.pinRequired)); }).catch(() => setPhoneReady(false));
     return () => { ended.current = true; stopSpeaking(); cancelListen.current?.(); };
   }, []);
 
@@ -165,7 +167,7 @@ export default function CallPage() {
     setPhase("dialing");
     let callId: string;
     try {
-      callId = (await post<{ callId: string }>("/api/phone/start", { parent, memory: context().memory })).callId;
+      callId = (await post<{ callId: string }>("/api/phone/start", { parent, memory: context().memory, pin })).callId;
     } catch (e) {
       setError((e as Error).message);
       setPhase("ringing");
@@ -311,6 +313,13 @@ export default function CallPage() {
                     ? <>You play the parent: answer and talk back out loud. <Link href="/family" className="underline">Add {parent.callName}&apos;s number</Link> to ring their real phone.</>
                     : "You play the parent: answer and talk back out loud."}
             </p>
+
+            {mode === "phone" && pinRequired && (
+              <label className="mx-auto mb-6 flex max-w-xs flex-col gap-1.5 text-center text-[13px] text-white/60">
+                Demo PIN (real calls cost money, so they&apos;re protected)
+                <input value={pin} onChange={(e) => setPin(e.target.value)} inputMode="numeric" autoComplete="off" placeholder="PIN" aria-label="Demo PIN" className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center text-[18px] tracking-[0.3em] text-white outline-none placeholder:tracking-normal placeholder:text-white/40" />
+              </label>
+            )}
 
             {mode === "browser" && (
               <label className="mx-auto mb-7 flex max-w-xs flex-col gap-1.5 text-center text-[13px] text-white/60">

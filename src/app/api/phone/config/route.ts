@@ -5,5 +5,5 @@ import { retellConfig } from "@/lib/retell";
 export async function GET() {
   await connection();
   const cfg = retellConfig();
-  return Response.json({ enabled: Boolean(cfg), languages: cfg ? Object.keys(cfg.agents) : [] });
+  return Response.json({ enabled: Boolean(cfg), languages: cfg ? Object.keys(cfg.agents) : [], pinRequired: Boolean(process.env.PHONE_DEMO_PIN?.trim()) });
 }

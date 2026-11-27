@@ -84,7 +84,7 @@ function FamilyEditor() {
 
       <section className="rise rise-1 card grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
         <label><Label>Parent&apos;s name</Label><input required className={field} placeholder="e.g. Kamla Devi" value={f.name} onChange={(e) => set("name", e.target.value)} /></label>
-        <label><Label hint="the call greets them this way">You call them</Label><input className={field} placeholder="e.g. Mummy-ji, Papa, Amma" value={f.callName} onChange={(e) => set("callName", e.target.value)} /></label>
+        <label><Label hint="the call greets them this way">You call them</Label><input className={field} placeholder="e.g. Mummy-ji or Papa" value={f.callName} onChange={(e) => set("callName", e.target.value)} /></label>
         <label>
           <Label hint="the real phone call rings this number">Their phone number</Label>
           <input type="tel" inputMode="tel" autoComplete="off" className={`${field} ${phoneOk ? "" : "border-alarm"}`} placeholder="e.g. 98765 43210" value={f.phone} onChange={(e) => set("phone", e.target.value)} />
@@ -99,8 +99,8 @@ function FamilyEditor() {
         </label>
         <label><Label>Daily call time</Label><input type="time" className={field} value={f.callTime} onChange={(e) => set("callTime", e.target.value)} /></label>
         <label className="sm:col-span-2">
-          <Label hint="optional, the first thing they hear">Custom greeting</Label>
-          <input className={field} placeholder={`e.g. Namaste ${f.callName || "Mummy-ji"}, Riya ki taraf se pyaar bhara pranaam!`} value={f.greeting} onChange={(e) => set("greeting", e.target.value)} />
+          <Label hint="optional, the first thing they hear each day. Type it any way, e.g. in Hinglish">Custom greeting</Label>
+          <input className={field} placeholder={`e.g. Namaste ${f.callName || "Mummy-ji"}!`} value={f.greeting} onChange={(e) => set("greeting", e.target.value)} />
         </label>
       </section>
 

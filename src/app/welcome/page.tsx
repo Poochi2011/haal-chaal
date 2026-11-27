@@ -112,7 +112,7 @@ export default function WelcomePage() {
               <h2 className="text-[26px] font-bold text-ink">{parents.length ? "Who else should we call?" : "Who should we call?"}</h2>
               <Field label="Parent's name"><input autoFocus className={field} placeholder={parents.length ? "e.g. Ramesh Chandra" : "e.g. Kamla Devi"} value={p.name} onChange={(e) => set("name", e.target.value)} /></Field>
               <Field label="What do you call them?" hint="The call greets them this way">
-                <input className={field} placeholder="e.g. Mummy-ji, Papa, Amma, Baba" value={p.callName} onChange={(e) => set("callName", e.target.value)} />
+                <input className={field} placeholder="e.g. Mummy-ji or Papa" value={p.callName} onChange={(e) => set("callName", e.target.value)} />
               </Field>
               <Field label="Their phone number" hint="Haal-Chaal rings this phone every day. You can add it later.">
                 <input type="tel" inputMode="tel" autoComplete="off" className={`${field} ${phoneOk ? "" : "border-alarm"}`} placeholder="e.g. 98765 43210" value={p.phone} onChange={(e) => set("phone", e.target.value)} />
@@ -137,8 +137,8 @@ export default function WelcomePage() {
               </div>
               <div className="mt-5 space-y-4">
                 <Field label="Daily call time"><input type="time" className={field} value={p.callTime} onChange={(e) => set("callTime", e.target.value)} /></Field>
-                <Field label="Custom greeting" hint="Optional. The first thing they hear each day.">
-                  <input className={field} placeholder={`e.g. Namaste ${p.callName || "Mummy-ji"}, ${childName || "Riya"} ki taraf se pranaam!`} value={p.greeting} onChange={(e) => set("greeting", e.target.value)} />
+                <Field label="Custom greeting" hint={`Optional. The first thing they hear each day, e.g. "Namaste ${p.callName || "Mummy-ji"}, ${childName || "Riya"} ki taraf se pranaam!"`}>
+                  <input className={field} placeholder={`e.g. Namaste ${p.callName || "Mummy-ji"}!`} value={p.greeting} onChange={(e) => set("greeting", e.target.value)} />
                 </Field>
               </div>
             </>
@@ -147,7 +147,7 @@ export default function WelcomePage() {
           {step === 4 && (
             <>
               <h2 className="text-[26px] font-bold text-ink">Which medicines should we ask about?</h2>
-              <p className="mb-4 mt-1 text-[15px] text-muted">Tap to add, then pick when. Use the words {p.callName || "your parent"} uses. You can skip this.</p>
+              <p className="mb-4 mt-1 text-[15px] text-muted">Add each medicine and pick when it&apos;s taken. Use the words {p.callName || "your parent"} uses. You can skip this.</p>
               <MedicineEditor value={p.medicines} onChange={(m) => set("medicines", m)} />
             </>
           )}

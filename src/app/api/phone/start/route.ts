@@ -9,6 +9,7 @@ import type { Parent } from "@/lib/types";
 interface Body {
   parent: Parent;
   memory: string;
+  pin?: string;
 }
 
 async function greetingFor(p: Parent): Promise<string> {
@@ -33,7 +34,12 @@ async function greetingFor(p: Parent): Promise<string> {
 export async function POST(req: Request) {
   const cfg = retellConfig();
   if (!cfg) return Response.json({ error: "Real phone calls are not set up on this server." }, { status: 503 });
-  const { parent, memory } = (await req.json()) as Body;
+  const { parent, memory, pin } = (await req.json()) as Body;
+  // On the public demo, real (paid) calls need a PIN so strangers can't run up the bill.
+  const requiredPin = process.env.PHONE_DEMO_PIN?.trim();
+  if (requiredPin && pin?.trim() !== requiredPin) {
+    return Response.json({ error: "Enter the demo PIN to place a real phone call." }, { status: 403 });
+  }
 
   const to = toE164(parent.phone || "");
   if (!to) return Response.json({ error: `Add ${parent.callName}'s phone number in Family settings first.` }, { status: 400 });
