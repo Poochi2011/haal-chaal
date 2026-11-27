@@ -85,5 +85,11 @@ node scripts/setup-retell.mjs     # prints RETELL_AGENTS=..., add it to .env.loc
 
 Without these, the toggle is disabled and everything else works as before.
 
+## Emergency escalation
+If a parent mentions chest pain, breathlessness, a fall or fainting (caught by both the AI and rule-based patterns in `src/lib/safety.ts`), Haal-Chaal immediately **rings the family member's own phone** with a short spoken alert (`/api/phone/alert`), at most once per parent every 10 minutes. The family member's number is set during onboarding or in Family settings.
+
+## Demo PIN
+Real phone calls cost money, so on the public demo they need a PIN (`PHONE_DEMO_PIN`). The in-browser call works for everyone without it.
+
 ## Images
 The parent portraits (`public/parent.jpg`, `public/father.jpg`) and the sunrise banner (`public/hero.jpg`) were generated with ChatGPT image generation for this prototype. They are not real people.

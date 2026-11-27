@@ -30,6 +30,7 @@ export interface Parent {
 
 export interface Household {
   childName: string;   // the person managing the app
+  childPhone?: string; // E.164; rung automatically on an emergency
   parents: Parent[];
 }
 

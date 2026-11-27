@@ -10,6 +10,7 @@ import { detectEmergency } from "@/lib/safety";
 import { isoDay } from "@/lib/seed";
 import { hasVoiceFor, listenOnce, speak, speechSupported, stopSpeaking, type ListenResult } from "@/lib/speech";
 import { getActiveId, loadCalls, loadHousehold, saveCall, saveParent, setActiveId } from "@/lib/store";
+import { callFamilyAboutEmergency, getPin, setPin as storePin } from "@/lib/alert";
 import type { CallRecord, CallSummary, Household, Parent, Turn, TurnReply } from "@/lib/types";
 
 type Phase = "ringing" | "thinking" | "speaking" | "listening" | "dialing" | "live" | "saving" | "done";
@@ -54,6 +55,8 @@ export default function CallPage() {
   const [error, setError] = useState<string | null>(null);
   const [seconds, setSeconds] = useState(0);
   const [result, setResult] = useState<CallRecord | null>(null);
+  const [alertMsg, setAlertMsg] = useState<{ ok: boolean; message: string } | null>(null);
+  const alerted = useRef(false);
 
   const transcript = useRef<Turn[]>([]);
   const ended = useRef(false);
@@ -65,6 +68,7 @@ export default function CallPage() {
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    setPin(getPin());
     ended.current = false; // React dev mode mounts twice; the first cleanup must not end the real call
     const h = loadHousehold();
     setHousehold(h);
@@ -93,6 +97,13 @@ export default function CallPage() {
     const calls = loadCalls().filter((c) => c.parentId === parent.id);
     const lastSummary = [...calls].sort((a, b) => b.date.localeCompare(a.date)).find((c) => c.summary)?.summary;
     return { memory: memoryNotes(calls), lastComplaint: lastSummary?.complaints.find((c) => c !== "feeling lonely") ?? null };
+  };
+
+  /** Ring the family member at once when a serious symptom comes up (only once per call). */
+  const escalate = (reason: string, said?: string) => {
+    if (alerted.current) return;
+    alerted.current = true;
+    void callFamilyAboutEmergency(household, parent, reason, said).then(setAlertMsg);
   };
 
   // ---------- in-browser call ----------
@@ -137,6 +148,10 @@ export default function CallPage() {
       setPhase("speaking");
       if (voiceOk) await speak(reply.say, lang.speech);
       else await sleep(1200 + reply.say.length * 45);
+      if (reply.emergency && !emergency) {
+        const said = [...transcript.current].reverse().find((x) => x.role === "parent")?.text;
+        escalate(said ? detectEmergency(said) ?? "A serious symptom" : "A serious symptom", said);
+      }
       emergency ||= reply.emergency;
       if (reply.end || ended.current) break;
 
@@ -156,7 +171,8 @@ export default function CallPage() {
       else if (ans.confidence > 0 && ans.confidence < 0.45) text = `[unclear] ${text}`;
       setLive("");
       push({ role: "parent", text, at: Date.now() });
-      if (detectEmergency(text)) emergency = true;
+      const rule = detectEmergency(text);
+      if (rule) { emergency = true; escalate(rule, text); }
     }
     await finish({ emergency, via: "browser" });
   };
@@ -220,6 +236,10 @@ export default function CallPage() {
       messageDelivered: answered && parent.message ? parent.message : undefined,
     };
     saveCall(rec);
+    if (emergency) {
+      const said = t.find((x) => x.role === "parent" && detectEmergency(x.text))?.text;
+      escalate(summary?.emergencyReason || (said && detectEmergency(said)) || "A serious symptom", said);
+    }
     if (rec.messageDelivered) saveParent({ ...parent, message: "" });
     setResult(rec);
     setPhase("done");
@@ -317,7 +337,7 @@ export default function CallPage() {
             {mode === "phone" && pinRequired && (
               <label className="mx-auto mb-6 flex max-w-xs flex-col gap-1.5 text-center text-[13px] text-white/60">
                 Demo PIN (real calls cost money, so they&apos;re protected)
-                <input value={pin} onChange={(e) => setPin(e.target.value)} inputMode="numeric" autoComplete="off" placeholder="PIN" aria-label="Demo PIN" className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center text-[18px] tracking-[0.3em] text-white outline-none placeholder:tracking-normal placeholder:text-white/40" />
+                <input value={pin} onChange={(e) => { setPin(e.target.value); storePin(e.target.value); }} inputMode="numeric" autoComplete="off" placeholder="PIN" aria-label="Demo PIN" className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-center text-[18px] tracking-[0.3em] text-white outline-none placeholder:tracking-normal placeholder:text-white/40" />
               </label>
             )}
 
@@ -372,6 +392,7 @@ export default function CallPage() {
               )}
               {phase === "saving" && <p className="py-3 text-center text-[15px] text-white/70">Writing the summary for {household.childName || "the family"}…</p>}
             </div>
+            {alertMsg && inCall && <p className={`mb-2 rounded-2xl px-4 py-2 text-center text-[13px] font-semibold ${alertMsg.ok ? "bg-alarm text-white" : "bg-amber/25 text-[#ffdcb8]"}`}>📞 {alertMsg.message}</p>}
             {micNote && <p className="mb-2 rounded-2xl bg-white/10 px-4 py-2 text-center text-[13px] text-white/80">{micNote}</p>}
             {noVoice && <p className="mb-2 rounded-2xl bg-amber/20 px-4 py-2 text-center text-[13px] text-[#ffdcb8]">This browser has no {lang.name} voice, so replies show as captions.</p>}
             {error && <p className="mb-2 rounded-2xl bg-alarm/25 px-4 py-2 text-center text-[13px] text-[#ffd0c9]">{error}</p>}
@@ -416,6 +437,11 @@ export default function CallPage() {
                 <p className="text-[13px] font-semibold uppercase tracking-[0.16em] text-muted">What {household.childName || "the family"} will see</p>
                 {result.status === "no_answer" && <p className="mt-3 text-[18px] font-bold text-alarm">No answer. The family gets an alert.</p>}
                 {result.status === "emergency" && <p className="mt-3 text-[18px] font-bold text-alarm">Emergency alert: {result.summary?.emergencyReason ?? "serious symptom"}.</p>}
+                {alertMsg && (
+                  <p className={`mt-2 rounded-2xl px-4 py-3 text-[15px] font-medium ${alertMsg.ok ? "bg-alarm-soft text-alarm" : "bg-peach text-ink-2"}`}>
+                    📞 {alertMsg.message}
+                  </p>
+                )}
                 {result.summary && (
                   <>
                     <p className="mt-3 text-[17px] leading-relaxed">{result.summary.summary}</p>

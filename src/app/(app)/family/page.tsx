@@ -7,7 +7,8 @@ import { ParentSwitcher } from "@/components/bits";
 import { cleanMedicines, MedicineEditor } from "@/components/MedicineEditor";
 import { LANGUAGES } from "@/lib/languages";
 import { toE164 } from "@/lib/phone";
-import { loadHousehold, removeParent, resetDemo, saveHousehold, saveParent, setActiveId } from "@/lib/store";
+import { loadHousehold, removeParent, resetAll, resetDemo, saveHousehold, saveParent, setActiveId } from "@/lib/store";
+import { getPin, setPin as storePin } from "@/lib/alert";
 import { blankParent } from "@/lib/seed";
 import type { Parent } from "@/lib/types";
 import { useFamily } from "@/lib/useFamily";
@@ -34,6 +35,14 @@ function FamilyEditor() {
   const [f, setF] = useState<Parent | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [childName, setChildName] = useState("");
+  const [childPhone, setChildPhone] = useState<string | null>(null);
+  const [pin, setPinState] = useState("");
+  const [pinRequired, setPinRequired] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
+  useEffect(() => {
+    setPinState(getPin());
+    fetch("/api/phone/config").then((r) => r.json()).then((c) => setPinRequired(Boolean(c.enabled && c.pinRequired))).catch(() => {});
+  }, []);
   const [saved, setSaved] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
 
@@ -42,13 +51,15 @@ function FamilyEditor() {
     if (wantsNew && !isNew) { setF(blankParent()); setIsNew(true); setSaved(false); }
     else if (!wantsNew && (!f || isNew || f.id !== parent.id)) { setF(parent); setIsNew(false); setSaved(false); }
     setChildName((c) => c || household.childName);
+    setChildPhone((c) => (c === null ? household.childPhone ?? "" : c));
   }, [household, parent, f, isNew, wantsNew]);
 
   if (!f || !household) return null;
 
   const set = <K extends keyof Parent>(k: K, v: Parent[K]) => { setF({ ...f, [k]: v }); setSaved(false); };
   const phoneOk = !f.phone.trim() || toE164(f.phone) !== null;
-  const canSave = f.name.trim() && phoneOk;
+  const childPhoneOk = !(childPhone ?? "").trim() || toE164(childPhone ?? "") !== null;
+  const canSave = f.name.trim() && phoneOk && childPhoneOk;
 
   const save = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +72,11 @@ function FamilyEditor() {
       medicines: cleanMedicines(f.medicines),
     };
     saveParent(clean);
-    if (childName.trim() !== household.childName) saveHousehold({ ...loadHousehold(), childName: childName.trim() });
+    const cp = (childPhone ?? "").trim() ? toE164(childPhone ?? "")! : "";
+    if (childName.trim() !== household.childName || cp !== (household.childPhone ?? "")) {
+      saveHousehold({ ...loadHousehold(), childName: childName.trim(), childPhone: cp });
+      setChildPhone(cp);
+    }
     setActiveId(clean.id);
     setF(clean);
     setSaved(true);
@@ -113,6 +128,17 @@ function FamilyEditor() {
         <label><Label hint="private, helps the call follow up">Health notes</Label><textarea rows={3} className={field} placeholder="e.g. knee pain, diabetes" value={f.healthNotes} onChange={(e) => set("healthNotes", e.target.value)} /></label>
         <label><Label hint="read out once, in their language">Message for the next call</Label><input className={field} value={f.message} onChange={(e) => set("message", e.target.value)} /></label>
         <label><Label hint="shown on your dashboard">Your name</Label><input className={field} value={childName} onChange={(e) => { setChildName(e.target.value); setSaved(false); }} /></label>
+        <label>
+          <Label hint="if a call turns up an emergency, we ring you right away">Your phone number</Label>
+          <input type="tel" inputMode="tel" autoComplete="off" className={`${field} ${childPhoneOk ? "" : "border-alarm"}`} placeholder="e.g. 98765 43210" value={childPhone ?? ""} onChange={(e) => { setChildPhone(e.target.value); setSaved(false); }} />
+          {!childPhoneOk && <span className="mt-1 block text-[13px] text-alarm">Enter a 10-digit Indian mobile number, or include the country code.</span>}
+        </label>
+        {pinRequired && (
+          <label>
+            <Label hint="real phone calls on this demo need it; saved on this device">Demo PIN</Label>
+            <input inputMode="numeric" autoComplete="off" className={field} placeholder="PIN" value={pin} onChange={(e) => { setPinState(e.target.value); storePin(e.target.value); }} />
+          </label>
+        )}
       </section>
 
       <div className="sticky bottom-[84px] z-10 -mx-5 bg-gradient-to-t from-cream via-cream/95 to-cream/0 px-5 pb-3 pt-6 sm:mx-0 sm:px-0 lg:bottom-0 lg:pb-6">
@@ -134,6 +160,19 @@ function FamilyEditor() {
             <UserMinus className="h-4.5 w-4.5" /> {confirmRemove ? `Tap again to remove ${f.callName || "parent"} and their calls` : `Remove ${f.callName || "parent"}`}
           </button>
         )}
+
+      <section className="card mt-4 p-5 sm:p-6">
+        <p className="text-[17px] font-bold text-ink">Start over</p>
+        <p className="mt-0.5 text-[15px] text-muted">Deletes every parent, call and setting saved on this device, then opens the welcome screen.</p>
+        <button
+          type="button"
+          onClick={() => { if (!confirmReset) { setConfirmReset(true); return; } resetAll(); window.location.href = "/welcome"; }}
+          onBlur={() => setConfirmReset(false)}
+          className={`mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border px-5 py-3.5 text-[15px] font-semibold sm:w-auto ${confirmReset ? "border-alarm bg-alarm text-white" : "border-alarm/40 bg-white text-alarm"}`}
+        >
+          <RotateCcw className="h-4.5 w-4.5" /> {confirmReset ? "Tap again to erase everything" : "Reset account"}
+        </button>
+      </section>
     </form>
   );
 }

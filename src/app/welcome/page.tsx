@@ -26,13 +26,14 @@ export default function WelcomePage() {
   const router = useRouter();
   const [step, setStep] = useState(0);           // 0 intro · 1 you · 2 parent · 3 language · 4 medicines · 5 done
   const [childName, setChildName] = useState("");
+  const [childPhone, setChildPhone] = useState("");
   const [parents, setParents] = useState<Parent[]>([]);
   const [p, setP] = useState<Parent>(blankParent());
   const set = <K extends keyof Parent>(k: K, v: Parent[K]) => setP({ ...p, [k]: v });
 
   const phoneOk = !p.phone.trim() || toE164(p.phone) !== null;
   const canNext: Record<number, boolean> = {
-    1: childName.trim().length > 0,
+    1: childName.trim().length > 0 && (!childPhone.trim() || toE164(childPhone) !== null),
     2: p.name.trim().length > 0 && phoneOk,
     3: true,
     4: true,
@@ -55,7 +56,7 @@ export default function WelcomePage() {
   const addAnother = () => { setP(blankParent()); setStep(2); };
 
   const finish = (dest: string) => {
-    saveHousehold({ childName: childName.trim(), parents });
+    saveHousehold({ childName: childName.trim(), childPhone: childPhone.trim() ? toE164(childPhone)! : "", parents });
     saveCalls([]);
     setActiveId(parents[0].id);
     markOnboarded();
@@ -102,8 +103,12 @@ export default function WelcomePage() {
           {step === 1 && (
             <div className="space-y-4">
               <h2 className="text-[26px] font-bold text-ink">First, what&apos;s your name?</h2>
-              <p className="-mt-2 text-[15px] text-muted">You&apos;ll see the summaries and alerts. We never call you, only your parents.</p>
+              <p className="-mt-2 text-[15px] text-muted">You&apos;ll see the summaries and alerts. The daily call goes to your parents; you only get a call in an emergency.</p>
               <Field label="Your name"><input autoFocus className={field} placeholder="e.g. Riya" value={childName} onChange={(e) => setChildName(e.target.value)} /></Field>
+              <Field label="Your phone number" hint="Optional. If a parent mentions chest pain, a fall or similar, we ring you right away.">
+                <input type="tel" inputMode="tel" autoComplete="off" className={field} placeholder="e.g. 98765 43210" value={childPhone} onChange={(e) => setChildPhone(e.target.value)} />
+                {childPhone.trim() && !toE164(childPhone) && <span className="mt-1 block text-[13px] text-alarm">Enter a 10-digit Indian mobile number, or include the country code.</span>}
+              </Field>
             </div>
           )}
 

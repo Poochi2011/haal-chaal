@@ -87,6 +87,12 @@ export function saveCall(rec: CallRecord) {
   write(CALLS_KEY, calls);
 }
 
+/** Wipes everything this app stored in the browser and starts fresh. */
+export function resetAll() {
+  for (const k of Object.keys(window.localStorage)) if (k.startsWith("haalchaal.")) window.localStorage.removeItem(k);
+  window.dispatchEvent(new Event("haalchaal:change"));
+}
+
 export function resetDemo() {
   write(HOUSEHOLD_KEY, SAMPLE_HOUSEHOLD);
   write(CALLS_KEY, sampleHistory());
