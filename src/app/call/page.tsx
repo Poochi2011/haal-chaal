@@ -40,6 +40,7 @@ export default function CallPage() {
   const [parent, setParent] = useState<Parent | null>(null);
   const [mode, setMode] = useState<Mode>("browser");
   const [phoneReady, setPhoneReady] = useState<boolean | null>(null);
+  const [phoneLangs, setPhoneLangs] = useState<string[]>([]);
   const [phase, setPhase] = useState<Phase>("ringing");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [live, setLive] = useState("");
@@ -67,7 +68,7 @@ export default function CallPage() {
     setHousehold(h);
     setParent(h.parents.find((p) => p.id === getActiveId()) ?? h.parents[0]);
     if (!speechSupported().listen) { typingRef.current = true; setTyping(true); }
-    fetch("/api/phone/config").then((r) => r.json()).then((c) => setPhoneReady(Boolean(c.enabled))).catch(() => setPhoneReady(false));
+    fetch("/api/phone/config").then((r) => r.json()).then((c) => { setPhoneReady(Boolean(c.enabled)); setPhoneLangs(c.languages ?? []); }).catch(() => setPhoneReady(false));
     return () => { ended.current = true; stopSpeaking(); cancelListen.current?.(); };
   }, []);
 
@@ -81,9 +82,10 @@ export default function CallPage() {
 
   if (!parent || !household) return <div className="min-h-screen bg-navy" />;
   const lang = getLanguage(parent.language);
-  const phoneAllowed = phoneReady === true && Boolean(parent.phone);
+  const langOnPhone = phoneLangs.includes(parent.language);
+  const phoneAllowed = phoneReady === true && Boolean(parent.phone) && langOnPhone;
 
-  const choose = (p: Parent) => { setParent(p); setActiveId(p.id); if (!(phoneReady && p.phone)) setMode("browser"); };
+  const choose = (p: Parent) => { setParent(p); setActiveId(p.id); if (!(phoneReady && p.phone && phoneLangs.includes(p.language))) setMode("browser"); };
   const push = (t: Turn) => { transcript.current = [...transcript.current, t]; setTurns(transcript.current); };
   const context = () => {
     const calls = loadCalls().filter((c) => c.parentId === parent.id);
@@ -294,6 +296,8 @@ export default function CallPage() {
                 ? `A real call to ${parent.callName}'s phone (${maskedPhone}). You can watch it from here.`
                 : phoneReady === false
                   ? "You play the parent: answer and talk back out loud. (Real phone calls aren't switched on for this server.)"
+                  : phoneReady && !langOnPhone
+                    ? `You play the parent: answer and talk back out loud. (Real phone calls don't support ${lang.name} yet: Hindi, English, Marathi, Tamil and Kannada do.)`
                   : !parent.phone
                     ? <>You play the parent: answer and talk back out loud. <Link href="/family" className="underline">Add {parent.callName}&apos;s number</Link> to ring their real phone.</>
                     : "You play the parent: answer and talk back out loud."}
