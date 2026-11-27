@@ -9,6 +9,8 @@ interface Body {
   parentName: string;   // how the child refers to them, e.g. "Mummy-ji"
   reason: string;       // e.g. "Chest pain"
   said?: string;        // what the parent actually said
+  kind?: "symptom" | "missed";
+  attempts?: number;
   pin?: string;
 }
 
@@ -23,7 +25,10 @@ export async function POST(req: Request) {
   const to = toE164(b.childPhone || "");
   if (!to) return Response.json({ error: "Add your phone number in Family settings to get emergency calls." }, { status: 400 });
 
-  const alert = `This is an urgent alert from Haal-Chaal. During today's call, ${b.parentName} mentioned ${b.reason.toLowerCase()}${b.said ? `, saying: "${b.said.slice(0, 140)}"` : ""}. Please call ${b.parentName} right away, or ask a neighbour to check on them.`;
+  const alert = b.kind === "missed"
+    ? `This is an alert from Haal-Chaal. We called ${b.parentName} ${b.attempts ?? 4} times today, ten minutes apart, and nobody picked up. Please call ${b.parentName} yourself, or ask a neighbour to check on them.`
+    : `This is an urgent alert from Haal-Chaal. During today's call, ${b.parentName} mentioned ${b.reason.toLowerCase()}${b.said ? `, saying: "${b.said.slice(0, 140)}"` : ""}. Please call ${b.parentName} right away, or ask a neighbour to check on them.`;
+  const repeat = b.kind === "missed" ? `I'll repeat: ${b.parentName} has not answered today's calls. Please check on them.` : `I'll repeat: ${b.parentName} mentioned ${b.reason.toLowerCase()}. Please call them now.`;
   const instructions = `You are Haal-Chaal's emergency alert line, calling ${b.childName || "a family member"} about their parent ${b.parentName}. You have ALREADY said the alert in your first line. Now: if they ask questions, calmly repeat the key facts (what was said, the symptom) in one or two short sentences. Never give medical advice beyond "call them now or call emergency services (112)". Keep it under 30 seconds, then say goodbye and end the call. Speak English.`;
 
   try {
@@ -32,7 +37,7 @@ export async function POST(req: Request) {
         from_number: cfg.from,
         to_number: to,
         override_agent_id: cfg.agents.en ?? Object.values(cfg.agents)[0],
-        retell_llm_dynamic_variables: { instructions, greeting: `${alert} I'll repeat: ${b.parentName} mentioned ${b.reason.toLowerCase()}. Please call them now.` },
+        retell_llm_dynamic_variables: { instructions, greeting: `${alert} ${repeat}` },
         metadata: { app: "haal-chaal", kind: "emergency-alert" },
       },
     });

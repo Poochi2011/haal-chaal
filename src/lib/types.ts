@@ -64,6 +64,7 @@ export interface CallRecord {
   transcript: Turn[];
   summary?: CallSummary;
   messageDelivered?: string;
+  attempts?: number;     // how many times we rang before giving up (missed calls)
 }
 
 export type AlertLevel = "red" | "amber";

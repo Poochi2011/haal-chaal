@@ -88,6 +88,9 @@ Without these, the toggle is disabled and everything else works as before.
 ## Emergency escalation
 If a parent mentions chest pain, breathlessness, a fall or fainting (caught by both the AI and rule-based patterns in `src/lib/safety.ts`), Haal-Chaal immediately **rings the family member's own phone** with a short spoken alert (`/api/phone/alert`), at most once per parent every 10 minutes. The family member's number is set during onboarding or in Family settings.
 
+## Missed calls
+A missed call is retried every 10 minutes, up to 4 attempts in total. One missed call only shows a gentle note ("might just be busy"); if all 4 go unanswered, the dashboard shows a red alert and the family member gets an alert call. (In this prototype the retries run while the call screen is open; in the demo, "Skip the 10-minute wait" shows the whole flow.)
+
 ## Demo PIN
 Real phone calls cost money, so on the public demo they need a PIN (`PHONE_DEMO_PIN`). The in-browser call works for everyone without it.
 

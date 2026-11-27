@@ -13,7 +13,10 @@ import { getActiveId, loadCalls, loadHousehold, saveCall, saveParent, setActiveI
 import { callFamilyAboutEmergency, getPin, setPin as storePin } from "@/lib/alert";
 import type { CallRecord, CallSummary, Household, Parent, Turn, TurnReply } from "@/lib/types";
 
-type Phase = "ringing" | "thinking" | "speaking" | "listening" | "dialing" | "live" | "saving" | "done";
+type Phase = "ringing" | "thinking" | "speaking" | "listening" | "dialing" | "live" | "retrying" | "saving" | "done";
+
+const MAX_ATTEMPTS = 4;              // the first call + 3 retries
+const RETRY_MS = 10 * 60 * 1000;     // 10 minutes between attempts
 type Mode = "browser" | "phone";
 
 const PHASE_LABEL: Record<Phase, string> = {
@@ -23,6 +26,7 @@ const PHASE_LABEL: Record<Phase, string> = {
   listening: "Listening…",
   dialing: "Ringing their phone…",
   live: "On the call",
+  retrying: "Missed call, retrying",
   saving: "Writing the summary…",
   done: "Call ended",
 };
@@ -57,6 +61,10 @@ export default function CallPage() {
   const [result, setResult] = useState<CallRecord | null>(null);
   const [alertMsg, setAlertMsg] = useState<{ ok: boolean; message: string } | null>(null);
   const alerted = useRef(false);
+  const attemptRef = useRef(1);
+  const [attempt, setAttempt] = useState(1);
+  const [retryAt, setRetryAt] = useState<number | null>(null);
+  const [now, setNow] = useState(Date.now());
 
   const transcript = useRef<Turn[]>([]);
   const ended = useRef(false);
@@ -86,6 +94,17 @@ export default function CallPage() {
 
   useEffect(() => { scroller.current?.scrollTo({ top: 1e6, behavior: "smooth" }); }, [turns, live]);
 
+  // Retry countdown: when it reaches zero, ring again.
+  useEffect(() => {
+    if (retryAt === null) return;
+    const id = setInterval(() => {
+      setNow(Date.now());
+      if (Date.now() >= retryAt) retryNowRef.current?.();
+    }, 1000);
+    return () => clearInterval(id);
+  }, [retryAt]);
+  const retryNowRef = useRef<(() => void) | null>(null);
+
   if (!parent || !household) return <div className="min-h-screen bg-navy" />;
   const lang = getLanguage(parent.language);
   const langOnPhone = phoneLangs.includes(parent.language);
@@ -100,10 +119,10 @@ export default function CallPage() {
   };
 
   /** Ring the family member at once when a serious symptom comes up (only once per call). */
-  const escalate = (reason: string, said?: string) => {
+  const escalate = (reason: string, said?: string, missedAttempts?: number) => {
     if (alerted.current) return;
     alerted.current = true;
-    void callFamilyAboutEmergency(household, parent, reason, said).then(setAlertMsg);
+    void callFamilyAboutEmergency(household, parent, reason, said, missedAttempts ? { attempts: missedAttempts } : undefined).then(setAlertMsg);
   };
 
   // ---------- in-browser call ----------
@@ -204,15 +223,17 @@ export default function CallPage() {
           setPhase("ringing");
           return;
         }
+        if (st.done && !st.answered) { missed("phone"); return; }
         if (st.done) {
-          await finish({ emergency: false, via: "phone", answered: Boolean(st.answered), durationSec: st.durationSec });
+          await finish({ emergency: false, via: "phone", answered: true, durationSec: st.durationSec });
           return;
         }
       } catch { /* keep polling */ }
     }
   };
 
-  const finish = async (o: { emergency: boolean; via: "browser" | "phone"; declined?: boolean; answered?: boolean; durationSec?: number }) => {
+  const finish = async (o: { emergency: boolean; via: "browser" | "phone"; declined?: boolean; answered?: boolean; durationSec?: number; attempts?: number }) => {
+    setRetryAt(null);
     ended.current = true;
     stopSpeaking();
     cancelListen.current?.();
@@ -234,11 +255,15 @@ export default function CallPage() {
       transcript: t,
       summary,
       messageDelivered: answered && parent.message ? parent.message : undefined,
+      attempts: answered ? undefined : o.attempts ?? attemptRef.current,
     };
     saveCall(rec);
     if (emergency) {
       const said = t.find((x) => x.role === "parent" && detectEmergency(x.text))?.text;
       escalate(summary?.emergencyReason || (said && detectEmergency(said)) || "A serious symptom", said);
+    }
+    if (rec.status === "no_answer" && (rec.attempts ?? 1) >= MAX_ATTEMPTS) {
+      escalate("No answer", undefined, rec.attempts);
     }
     if (rec.messageDelivered) saveParent({ ...parent, message: "" });
     setResult(rec);
@@ -246,8 +271,35 @@ export default function CallPage() {
   };
 
   const start = () => { setError(null); ended.current = false; if (mode === "phone") void runPhoneCall(); else void runBrowserCall(); };
+
+  /** A call wasn't picked up: wait 10 minutes and ring again, up to MAX_ATTEMPTS in total. */
+  const missed = (via: "browser" | "phone") => {
+    ended.current = true;
+    stopSpeaking();
+    cancelListen.current?.();
+    if (attemptRef.current >= MAX_ATTEMPTS) {
+      void finish({ emergency: false, via, declined: true, attempts: attemptRef.current });
+      return;
+    }
+    setRetryAt(Date.now() + RETRY_MS);
+    setNow(Date.now());
+    setPhase("retrying");
+  };
+  const retryNow = () => {
+    setRetryAt(null);
+    attemptRef.current += 1;
+    setAttempt(attemptRef.current);
+    transcript.current = [];
+    setTurns([]);
+    setError(null);
+    ended.current = false;
+    if (mode === "phone") void runPhoneCall();
+    else setPhase("ringing"); // the demo phone rings again
+  };
+  retryNowRef.current = retryNow;
+
   const hangUp = () => {
-    if (phase === "ringing") { void finish({ emergency: false, via: "browser", declined: true }); return; }
+    if (phase === "ringing") { missed("browser"); return; }
     if (mode === "phone") { ended.current = true; setResult(null); setPhase("done"); return; }
     void finish({ emergency: false, via: "browser" });
   };
@@ -260,7 +312,7 @@ export default function CallPage() {
 
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
   const ss = String(seconds % 60).padStart(2, "0");
-  const inCall = phase !== "ringing" && phase !== "done" && phase !== "saving";
+  const inCall = phase !== "ringing" && phase !== "done" && phase !== "saving" && phase !== "retrying";
   const big = phase === "ringing";
   const maskedPhone = parent.phone ? `${parent.phone.slice(0, -4).replace(/\d/g, "•")}${parent.phone.slice(-4)}` : "";
 
@@ -300,7 +352,7 @@ export default function CallPage() {
           <p className={`mt-4 font-semibold ${big ? "text-[26px] sm:text-[30px]" : "text-[20px]"}`}>{mode === "phone" ? parent.callName : "Haal-Chaal"}</p>
           <p className="mt-0.5 text-[15px] text-white/65">
             {big
-              ? mode === "phone" ? `We'll ring ${parent.callName}'s phone · ${lang.native}` : `Demo of ${parent.callName}'s daily call · ${lang.native}`
+              ? (attempt > 1 ? `Retry ${attempt - 1} of ${MAX_ATTEMPTS - 1} · ` : "") + (mode === "phone" ? `We'll ring ${parent.callName}'s phone · ${lang.native}` : `Demo of ${parent.callName}'s daily call · ${lang.native}`)
               : phase === "done" ? "Call ended" : `${mm}:${ss} · ${PHASE_LABEL[phase]}`}
           </p>
         </div>
@@ -374,6 +426,25 @@ export default function CallPage() {
           </div>
         )}
 
+        {phase === "retrying" && retryAt !== null && (
+          <div className="mb-8 mt-8 rounded-[26px] bg-white p-5 text-ink-2 shadow-2xl sm:p-6">
+            <p className="text-[13px] font-semibold uppercase tracking-[0.16em] text-muted">Missed call · attempt {attempt} of {MAX_ATTEMPTS}</p>
+            <p className="mt-2 text-[18px] font-bold text-ink">{parent.callName} didn&apos;t pick up. They might just be busy.</p>
+            <p className="mt-1 text-[16px]">
+              Calling again in <span className="font-bold tabular-nums text-ink">{String(Math.floor(Math.max(0, retryAt - now) / 60000)).padStart(2, "0")}:{String(Math.floor((Math.max(0, retryAt - now) % 60000) / 1000)).padStart(2, "0")}</span>.
+              {" "}If nobody answers after {MAX_ATTEMPTS} tries, {household.childName || "the family"} gets an alert call.
+            </p>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+              <button onClick={retryNow} className="flex-1 rounded-2xl bg-leaf px-5 py-3.5 text-[15px] font-semibold text-white">
+                {mode === "browser" ? "Skip the 10-minute wait (demo)" : "Call again now"}
+              </button>
+              <button onClick={() => void finish({ emergency: false, via: mode, declined: true, attempts: attemptRef.current })} className="flex-1 rounded-2xl border border-line px-5 py-3.5 text-[15px] font-semibold text-ink">
+                Stop retrying
+              </button>
+            </div>
+          </div>
+        )}
+
         {(inCall || phase === "saving") && (
           <>
             <div ref={scroller} className="mt-5 min-h-0 flex-1 space-y-3 overflow-y-auto pb-4" style={{ maxHeight: "calc(100dvh - 320px)" }}>
@@ -438,7 +509,9 @@ export default function CallPage() {
             {result ? (
               <>
                 <p className="text-[13px] font-semibold uppercase tracking-[0.16em] text-muted">What {household.childName || "the family"} will see</p>
-                {result.status === "no_answer" && <p className="mt-3 text-[18px] font-bold text-amber">Missed call. The family sees a gentle note; it only becomes an alert if calls go unanswered two days in a row.</p>}
+                {result.status === "no_answer" && ((result.attempts ?? 1) >= MAX_ATTEMPTS
+                  ? <p className="mt-3 text-[18px] font-bold text-alarm">No answer after {result.attempts} calls. {household.childName || "The family"} gets an alert.</p>
+                  : <p className="mt-3 text-[18px] font-bold text-amber">Missed call, retries stopped. The family sees a gentle note.</p>)}
                 {result.status === "emergency" && <p className="mt-3 text-[18px] font-bold text-alarm">Emergency alert: {result.summary?.emergencyReason ?? "serious symptom"}.</p>}
                 {alertMsg && (
                   <p className={`mt-2 rounded-2xl px-4 py-3 text-[15px] font-medium ${alertMsg.ok ? "bg-alarm-soft text-alarm" : "bg-peach text-ink-2"}`}>
