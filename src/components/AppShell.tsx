@@ -65,10 +65,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           href="/call"
           className="relative z-10 mt-8 flex items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3.5 text-[15px] font-semibold text-navy shadow-lg transition hover:bg-cream"
         >
-          <PhoneCall className="h-4.5 w-4.5" /> Start today&apos;s call
+          <PhoneCall className="h-4.5 w-4.5" /> Preview or place a call
         </Link>
         <p className="relative z-10 mt-3 px-2 text-center text-xs leading-relaxed text-white/55">
-          Try the call {parent?.callName ?? "your parent"} gets, or ring their phone.
+          Hear the exact call {parent?.callName ?? "your parent"} gets (you play the parent), or ring their real phone.
         </p>
         <Hills />
       </aside>
@@ -92,7 +92,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="grid h-14 w-14 place-items-center rounded-full bg-leaf text-white shadow-lg ring-4 ring-cream">
               <PhoneCall className="h-6 w-6" />
             </span>
-            Call
+            Call demo
           </Link>
           {NAV.slice(2).map((n) => <MobileTab key={n.href} {...n} on={active(n.href)} />)}
         </div>

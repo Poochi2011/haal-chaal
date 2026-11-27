@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, RotateCcw, Save, UserMinus } from "lucide-react";
 import { ParentSwitcher } from "@/components/bits";
+import { PhotoPicker } from "@/components/PhotoPicker";
 import { cleanMedicines, MedicineEditor } from "@/components/MedicineEditor";
 import { LANGUAGES } from "@/lib/languages";
 import { toE164 } from "@/lib/phone";
@@ -98,6 +99,7 @@ function FamilyEditor() {
       {!isNew && <ParentSwitcher household={household} active={parent ?? f} />}
 
       <section className="rise rise-1 card grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
+        <div className="sm:col-span-2"><PhotoPicker parent={f} onChange={(photo) => set("photo", photo)} /></div>
         <label><Label>Parent&apos;s name</Label><input required className={field} placeholder="e.g. Kamla Devi" value={f.name} onChange={(e) => set("name", e.target.value)} /></label>
         <label><Label hint="the call greets them this way">You call them</Label><input className={field} placeholder="e.g. Mummy-ji or Papa" value={f.callName} onChange={(e) => set("callName", e.target.value)} /></label>
         <label>

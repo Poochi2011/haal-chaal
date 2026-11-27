@@ -142,7 +142,7 @@ export default function HomePage() {
             <>
               <p className="mt-3 text-[17px] text-ink-2">After {parent.callName}&apos;s first call, a short summary appears here.</p>
               <Link href="/call" className="mt-5 inline-flex items-center gap-2 rounded-full bg-leaf px-5 py-3 text-[15px] font-semibold text-white shadow-sm">
-                <PhoneCall className="h-4 w-4" /> Start {parent.callName}&apos;s first call
+                <PhoneCall className="h-4 w-4" /> Preview {parent.callName}&apos;s call
               </Link>
             </>
           )}
@@ -176,7 +176,7 @@ export default function HomePage() {
             </Link>
           ) : (
             <Link href="/call" className="flex w-full shrink-0 items-center justify-center gap-2 rounded-full bg-leaf px-4 py-3 text-[15px] font-semibold text-white shadow-sm sm:w-auto sm:py-2.5 sm:text-[14px]">
-              <PhoneCall className="h-4 w-4" /> Start the call now
+              <PhoneCall className="h-4 w-4" /> Preview or place the call
             </Link>
           )}
         </section>

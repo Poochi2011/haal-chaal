@@ -17,7 +17,7 @@ type Phase = "ringing" | "thinking" | "speaking" | "listening" | "dialing" | "li
 type Mode = "browser" | "phone";
 
 const PHASE_LABEL: Record<Phase, string> = {
-  ringing: "Incoming call",
+  ringing: "Call demo",
   thinking: "…",
   speaking: "Haal-Chaal is speaking",
   listening: "Listening…",
@@ -270,6 +270,9 @@ export default function CallPage() {
         <Link href="/" className="flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-2 text-sm font-medium text-white/85 hover:bg-white/15">
           <ArrowLeft className="h-4 w-4" /> Dashboard
         </Link>
+        {mode === "browser" && phase !== "ringing" && phase !== "done" && (
+          <span className="rounded-full bg-amber/25 px-3 py-1.5 text-xs font-semibold text-[#ffd9b3]">Demo · you&apos;re playing {parent.callName}</span>
+        )}
         {aiMode && mode === "browser" && (
           <span className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold ${aiMode === "ai" ? "bg-iris/30 text-[#d9d4ff]" : "bg-amber/25 text-[#ffd9b3]"}`}>
             <Sparkles className="h-3.5 w-3.5" /> {aiMode === "ai" ? "Live AI" : "Demo mode"}
@@ -297,7 +300,7 @@ export default function CallPage() {
           <p className={`mt-4 font-semibold ${big ? "text-[26px] sm:text-[30px]" : "text-[20px]"}`}>{mode === "phone" ? parent.callName : "Haal-Chaal"}</p>
           <p className="mt-0.5 text-[15px] text-white/65">
             {big
-              ? mode === "phone" ? `We'll ring ${parent.callName}'s phone · ${lang.native}` : `Calling ${parent.callName} · ${lang.native}`
+              ? mode === "phone" ? `We'll ring ${parent.callName}'s phone · ${lang.native}` : `Demo of ${parent.callName}'s daily call · ${lang.native}`
               : phase === "done" ? "Call ended" : `${mm}:${ss} · ${PHASE_LABEL[phase]}`}
           </p>
         </div>
@@ -316,7 +319,7 @@ export default function CallPage() {
 
             <div className="mx-auto mb-3 grid max-w-sm grid-cols-2 gap-1 rounded-2xl bg-white/10 p-1" role="tablist" aria-label="Call type">
               <button role="tab" aria-selected={mode === "browser"} onClick={() => setMode("browser")} className={`flex items-center justify-center gap-2 rounded-xl px-2 py-2.5 text-[14px] font-semibold ${mode === "browser" ? "bg-white text-navy" : "text-white/75"}`}>
-                <Monitor className="h-4 w-4 shrink-0" /> In browser
+                <Monitor className="h-4 w-4 shrink-0" /> Demo here
               </button>
               <button role="tab" aria-selected={mode === "phone"} onClick={() => phoneAllowed && setMode("phone")} disabled={!phoneAllowed} className={`flex items-center justify-center gap-2 rounded-xl px-2 py-2.5 text-[14px] font-semibold disabled:opacity-45 ${mode === "phone" ? "bg-white text-navy" : "text-white/75"}`}>
                 <Smartphone className="h-4 w-4 shrink-0" /> Ring their phone
@@ -326,12 +329,12 @@ export default function CallPage() {
               {mode === "phone"
                 ? `A real call to ${parent.callName}'s phone (${maskedPhone}). You can watch it from here.`
                 : phoneReady === false
-                  ? "You play the parent: answer and talk back out loud. (Real phone calls aren't switched on for this server.)"
+                  ? "A preview of the call your parent receives. You play the parent: answer and talk back out loud. No real call is made. (Real phone calls aren't switched on for this server.)"
                   : phoneReady && !langOnPhone
-                    ? `You play the parent: answer and talk back out loud. (Real phone calls don't support ${lang.name} yet: Hindi, English, Marathi, Tamil and Kannada do.)`
+                    ? `A preview of the call your parent receives. You play the parent: answer and talk back out loud. No real call is made. (Real phone calls don't support ${lang.name} yet: Hindi, English, Marathi, Tamil and Kannada do.)`
                   : !parent.phone
-                    ? <>You play the parent: answer and talk back out loud. <Link href="/family" className="underline">Add {parent.callName}&apos;s number</Link> to ring their real phone.</>
-                    : "You play the parent: answer and talk back out loud."}
+                    ? <>A preview of the call your parent receives. You play the parent: answer and talk back out loud. No real call is made. <Link href="/family" className="underline">Add {parent.callName}&apos;s number</Link> to ring their real phone.</>
+                    : "A preview of the call your parent receives. You play the parent: answer and talk back out loud. No real call is made."}
             </p>
 
             {mode === "phone" && pinRequired && (
@@ -365,7 +368,7 @@ export default function CallPage() {
               )}
               <button onClick={start} className="flex flex-col items-center gap-2 text-sm font-semibold">
                 <span className="grid h-[68px] w-[68px] place-items-center rounded-full bg-leaf shadow-lg"><Phone className="h-7 w-7" /></span>
-                {mode === "phone" ? `Call ${parent.callName}` : "Answer"}
+                {mode === "phone" ? `Call ${parent.callName}` : `Answer as ${parent.callName}`}
               </button>
             </div>
           </div>

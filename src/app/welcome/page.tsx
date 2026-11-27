@@ -5,6 +5,7 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight, Check, Heart, PhoneCall, UserPlus } from "lucide-react";
 import { Avatar, SunriseHills } from "@/components/bits";
 import { cleanMedicines, MedicineEditor } from "@/components/MedicineEditor";
+import { PhotoPicker } from "@/components/PhotoPicker";
 import { LANGUAGES } from "@/lib/languages";
 import { toE164 } from "@/lib/phone";
 import { blankParent } from "@/lib/seed";
@@ -115,6 +116,7 @@ export default function WelcomePage() {
           {step === 2 && (
             <div className="space-y-4">
               <h2 className="text-[26px] font-bold text-ink">{parents.length ? "Who else should we call?" : "Who should we call?"}</h2>
+              <PhotoPicker parent={p} onChange={(photo) => set("photo", photo)} />
               <Field label="Parent's name"><input autoFocus className={field} placeholder={parents.length ? "e.g. Ramesh Chandra" : "e.g. Kamla Devi"} value={p.name} onChange={(e) => set("name", e.target.value)} /></Field>
               <Field label="What do you call them?" hint="The call greets them this way">
                 <input className={field} placeholder="e.g. Mummy-ji or Papa" value={p.callName} onChange={(e) => set("callName", e.target.value)} />
@@ -177,7 +179,7 @@ export default function WelcomePage() {
               </ul>
               <div className="mt-6 flex flex-col gap-3">
                 <button onClick={() => finish("/call")} className="flex items-center justify-center gap-2 rounded-2xl bg-leaf px-6 py-4 text-[17px] font-semibold text-white">
-                  <PhoneCall className="h-5 w-5" /> Try {parents[0]?.callName}&apos;s first call
+                  <PhoneCall className="h-5 w-5" /> Hear a demo of {parents[0]?.callName}&apos;s call
                 </button>
                 {parents.length < 4 && (
                   <button onClick={addAnother} className="flex items-center justify-center gap-2 rounded-2xl border border-line bg-white px-6 py-4 text-[16px] font-semibold text-ink">
