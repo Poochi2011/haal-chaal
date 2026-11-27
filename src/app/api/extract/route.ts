@@ -3,25 +3,26 @@
 import { getClient, structured } from "@/lib/ai";
 import { demoExtract } from "@/lib/demo";
 import { detectEmergency } from "@/lib/safety";
-import type { CallSummary, Family, Turn } from "@/lib/types";
+import type { CallSummary, Parent, Turn } from "@/lib/types";
+import { doseText } from "@/lib/types";
 
 interface Body {
-  family: Family;
+  parent: Parent;
   transcript: Turn[];
 }
 
 export async function POST(req: Request) {
-  const { family, transcript } = (await req.json()) as Body;
+  const { parent: family, transcript } = (await req.json()) as Body;
   const client = getClient();
   const fallback = () => ({ summary: demoExtract(family, transcript), mode: "demo" as const });
   if (!client) return Response.json(fallback());
 
-  const medList = family.medicines.map((m) => `"${m.id}": ${m.name} (${m.time})`).join(", ");
+  const medList = family.medicines.map((m) => `"${m.id}": ${m.name} (${doseText(m)})`).join(", ");
   const convo = transcript
     .map((t) => `${t.role === "ai" ? "HAAL-CHAAL" : family.callName.toUpperCase()}: ${t.text}`)
     .join("\n");
 
-  const prompt = `Below is a check-in phone call with ${family.parentName} ("${family.callName}"), an elderly parent. It may be in Hindi, another Indian language or a mix. Extract facts for their children. Only record what the parent actually said; if an answer is missing, silent or ambiguous use "unclear". Never guess.
+  const prompt = `Below is a check-in phone call with ${family.name} ("${family.callName}"), an elderly parent. It may be in Hindi, another Indian language or a mix. Extract facts for their children. Only record what the parent actually said; if an answer is missing, silent or ambiguous use "unclear". Never guess.
 
 Medicines (id: name): ${medList || "none"}
 
@@ -30,14 +31,14 @@ ${convo}
 
 Fill the respond tool with:
 {
-  "meds": { ${family.medicines.map((m) => `"${m.id}": "yes|no|unclear"`).join(", ")} },
+  "meds": { ${family.medicines.map((m) => `"${m.id}": "yes|no|unclear"`).join(", ")} }  (a medicine taken twice a day is "yes" only if both doses were taken; "no" if any dose was missed),
   "ate": "yes|partly|no|unclear",
   "slept": "yes|no|unclear",
   "mood": "good|okay|low|unclear",
   "complaints": ["short English phrases, e.g. knee pain, feeling lonely"],
   "emergency": true|false,
-  "emergencyReason": "short reason or empty",
-  "highlight": "one warm English line about something personal they shared",
+  "emergencyReason": "2-4 word label like Chest pain, or empty",
+  "highlight": "one warm English line about something personal they shared, or empty",
   "summary": "2-3 short plain English sentences for the children: medicines, food, mood, anything new"
 }`;
 
@@ -55,8 +56,8 @@ Fill the respond tool with:
           mood: { type: "string", enum: ["good", "okay", "low", "unclear"] },
           complaints: { type: "array", items: { type: "string" } },
           emergency: { type: "boolean" },
-          emergencyReason: { type: "string" },
-          highlight: { type: "string" },
+          emergencyReason: { type: "string", description: "2-4 word English label, e.g. 'Chest pain', 'A fall'. Empty if no emergency." },
+          highlight: { type: "string", description: "One warm English line about something personal they shared. Empty string if they shared nothing personal." },
           summary: { type: "string" },
         },
         required: ["meds", "ate", "slept", "mood", "complaints", "emergency", "highlight", "summary"],
@@ -67,8 +68,10 @@ Fill the respond tool with:
     const rule = detectEmergency(transcript.filter((t) => t.role === "parent").map((t) => t.text).join(" "));
     if (rule) {
       s.emergency = true;
-      s.emergencyReason = s.emergencyReason || rule;
+      s.emergencyReason = rule;
     }
+    if (s.emergencyReason && s.emergencyReason.split(/\s+/).length > 5) s.emergencyReason = "Serious symptom";
+    if (/^\W*(unclear|none|n\/a)?\W*$/i.test(s.highlight ?? "")) s.highlight = "";
     for (const m of family.medicines) if (!s.meds?.[m.id]) (s.meds ??= {})[m.id] = "unclear";
     s.complaints ??= [];
     return Response.json({ summary: s, mode: "ai" });

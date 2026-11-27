@@ -1,14 +1,14 @@
 "use client";
 
 import { Moon, Pill, Smile, TrendingDown, Utensils } from "lucide-react";
-import { Mark } from "@/components/bits";
+import { Mark, ParentSwitcher } from "@/components/bits";
 import { computeTrends } from "@/lib/insights";
 import { isoDay } from "@/lib/seed";
 import { useFamily } from "@/lib/useFamily";
 
 export default function HealthPage() {
-  const { family, calls } = useFamily();
-  if (!family) return null;
+  const { household, parent: family, calls } = useFamily();
+  if (!family || !household) return null;
   const days = Array.from({ length: 7 }, (_, i) => isoDay(i - 6));
   const byDate = new Map(calls.map((c) => [c.date, c]));
   const trends = computeTrends(calls);
@@ -20,7 +20,7 @@ export default function HealthPage() {
     { label: "Mood", icon: Smile, get: (d) => byDate.get(d)?.summary?.mood },
   ];
 
-  const taken = calls.slice(-7).flatMap((c) => Object.values(c.summary?.meds ?? {}));
+  const taken = [...calls].sort((a, b) => a.date.localeCompare(b.date)).slice(-7).flatMap((c) => Object.values(c.summary?.meds ?? {}));
   const pct = taken.length ? Math.round((taken.filter((v) => v === "yes").length / taken.length) * 100) : 0;
 
   return (
@@ -29,11 +29,12 @@ export default function HealthPage() {
         <h1 className="text-[30px] font-bold tracking-tight text-ink sm:text-[38px]">Health this week</h1>
         <p className="mt-1 text-[17px] text-ink-2">Slow changes that a quick phone call can miss.</p>
       </header>
+      <ParentSwitcher household={household} active={family} />
 
       <div className="grid gap-4 sm:grid-cols-2">
         <section className="rise rise-1 card p-5">
           <p className="text-[15px] text-muted">Medicines taken, last 7 calls</p>
-          <p className="mt-1 text-[44px] font-bold leading-none tracking-tight text-ink">{pct}%</p>
+          <p className="mt-1 text-[44px] font-bold leading-none tracking-tight text-ink">{taken.length ? `${pct}%` : "–"}</p>
           <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-cream-2"><div className="h-full rounded-full bg-leaf" style={{ width: `${pct}%` }} /></div>
         </section>
         <section className="rise rise-2 rounded-[22px] border border-amber/20 bg-peach p-5">

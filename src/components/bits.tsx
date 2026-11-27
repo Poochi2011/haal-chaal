@@ -1,7 +1,9 @@
 "use client";
 
-import { Check, CircleHelp, Minus, X } from "lucide-react";
-import type { CallRecord, Family, FamilyAlert } from "@/lib/types";
+import Link from "next/link";
+import { Check, CircleHelp, Minus, Plus, X } from "lucide-react";
+import { setActiveId } from "@/lib/store";
+import type { CallRecord, FamilyAlert, Household, Parent } from "@/lib/types";
 
 export type Status = "well" | "attention" | "urgent" | "none";
 
@@ -46,7 +48,7 @@ export function Mark({ v, size = 28 }: { v: string | undefined; size?: number })
   );
 }
 
-export function medsStatus(family: Family, rec?: CallRecord): string | undefined {
+export function medsStatus(family: Parent, rec?: CallRecord): string | undefined {
   if (!rec?.summary) return undefined;
   const vals = family.medicines.map((m) => rec.summary!.meds[m.id]);
   if (!vals.length) return "yes";
@@ -55,35 +57,49 @@ export function medsStatus(family: Family, rec?: CallRecord): string | undefined
   return "unclear";
 }
 
-export function Portrait({ className = "" }: { className?: string }) {
-  return (
+const AVATAR_TINTS = ["bg-peach-2 text-amber", "bg-lav-2 text-iris", "bg-leaf-soft text-leaf", "bg-alarm-soft text-alarm"];
+
+/** Parent photo, or their initials on a soft tint. */
+export function Avatar({ parent, className = "", textClass = "text-xl" }: { parent: Parent; className?: string; textClass?: string }) {
+  if (parent.photo) {
     // eslint-disable-next-line @next/next/no-img-element
-    <img src="/parent.jpg" onError={(e) => ((e.currentTarget.src = "/parents.jpg"))} alt="" className={`rounded-full object-cover ${className}`} />
+    return <img src={parent.photo} alt="" className={`shrink-0 rounded-full object-cover ${className}`} />;
+  }
+  const initials = (parent.callName || parent.name || "?").replace(/-ji$/i, "").trim().slice(0, 2).toUpperCase();
+  const tint = AVATAR_TINTS[[...parent.id].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_TINTS.length];
+  return <span className={`grid shrink-0 place-items-center rounded-full font-bold ${tint} ${textClass} ${className}`}>{initials}</span>;
+}
+
+/** Pills to switch between parents, plus "add parent". */
+export function ParentSwitcher({ household, active }: { household: Household; active: Parent }) {
+  return (
+    <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 sm:mx-0 sm:px-0" role="tablist" aria-label="Choose parent">
+      {household.parents.map((p) => {
+        const on = p.id === active.id;
+        return (
+          <button
+            key={p.id}
+            role="tab"
+            aria-selected={on}
+            onClick={() => setActiveId(p.id)}
+            className={`flex shrink-0 items-center gap-2.5 rounded-full border py-1.5 pl-1.5 pr-4 text-[15px] font-semibold transition ${on ? "border-navy bg-navy text-white" : "border-line bg-white text-ink hover:border-lav-2"}`}
+          >
+            <Avatar parent={p} className="h-8 w-8" textClass="text-[12px]" />
+            {p.callName || p.name}
+          </button>
+        );
+      })}
+      <Link href="/family?new=1" className="flex shrink-0 items-center gap-1.5 rounded-full border border-dashed border-muted/40 px-4 py-2 text-[14px] font-medium text-muted hover:text-ink">
+        <Plus className="h-4 w-4" /> Add parent
+      </Link>
+    </div>
   );
 }
 
-/** Soft sunrise-over-hills backdrop drawn in SVG (no image download needed). */
+/** Sunrise-over-hills backdrop (generated in ChatGPT, see README). */
 export function SunriseHills({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 800 260" preserveAspectRatio="xMidYMax slice" className={className} aria-hidden>
-      <defs>
-        <linearGradient id="sky" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#fbeee3" />
-          <stop offset="0.55" stopColor="#fbe3cf" />
-          <stop offset="1" stopColor="#f8d2b0" />
-        </linearGradient>
-        <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stopColor="#fffaf0" />
-          <stop offset="0.4" stopColor="#fff1d6" stopOpacity="0.9" />
-          <stop offset="1" stopColor="#ffe2bd" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <rect width="800" height="260" fill="url(#sky)" />
-      <circle cx="640" cy="130" r="90" fill="url(#sun)" />
-      <circle cx="640" cy="130" r="20" fill="#fff7ea" />
-      <path d="M260 190 C360 120 430 110 520 150 S680 100 800 135 V260 H260Z" fill="#cdb6b4" opacity="0.55" />
-      <path d="M200 225 C320 170 430 185 540 200 S700 160 800 180 V260 H200Z" fill="#a8a28f" opacity="0.6" />
-      <path d="M300 250 C420 215 520 228 620 236 S740 212 800 222 V260 H300Z" fill="#7f8a6a" opacity="0.7" />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/hero.jpg" alt="" aria-hidden className={`object-cover object-[70%_60%] ${className}`} />
   );
 }

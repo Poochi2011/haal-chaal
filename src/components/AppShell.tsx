@@ -38,8 +38,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = usePathname();
   const router = useRouter();
   useEffect(() => { if (!isOnboarded()) router.replace("/welcome"); }, [router]);
-  const { family, calls } = useFamily();
-  const alertCount = family ? computeAlerts(family, calls).length : 0;
+  const { parent, calls } = useFamily();
+  const alertCount = parent ? computeAlerts(parent, calls).length : 0;
   const active = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
 
   return (
@@ -68,7 +68,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <PhoneCall className="h-4.5 w-4.5" /> Start today&apos;s call
         </Link>
         <p className="relative z-10 mt-3 px-2 text-center text-xs leading-relaxed text-white/55">
-          Plays the call {family?.callName ?? "your parent"} gets, right here in your browser.
+          Try the call {parent?.callName ?? "your parent"} gets, or ring their phone.
         </p>
         <Hills />
       </aside>

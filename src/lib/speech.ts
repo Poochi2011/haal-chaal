@@ -33,8 +33,11 @@ export async function pickVoice(locale: string): Promise<SpeechSynthesisVoice | 
   const sameLang = voices.filter((v) => v.lang.toLowerCase().startsWith(base));
   const pool = exact.length ? exact : sameLang;
   if (!pool.length) return null;
+  // Google's network voices sound the most natural in Chrome; then Apple's
+  // enhanced/premium voices; then any female Indian voice.
   const score = (v: SpeechSynthesisVoice) =>
-    (/google/i.test(v.name) ? 4 : 0) + (/lekha|kalpana|veena|female|swara|neerja/i.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1);
+    (/google/i.test(v.name) ? 6 : 0) + (/premium|enhanced|natural|neural/i.test(v.name) ? 4 : 0) +
+    (/lekha|kalpana|veena|female|swara|neerja|vani|piya|geeta|soumya/i.test(v.name) ? 2 : 0) + (v.localService ? 0 : 1);
   return [...pool].sort((a, b) => score(b) - score(a))[0];
 }
 
@@ -42,29 +45,39 @@ export async function hasVoiceFor(locale: string): Promise<boolean> {
   return (await pickVoice(locale)) !== null;
 }
 
-/** Speaks text; resolves when finished (or immediately if no voice exists). */
-export async function speak(text: string, locale: string, rate = 0.92): Promise<void> {
+let speakToken = 0;
+
+/**
+ * Speaks text sentence by sentence with short natural pauses (browser voices
+ * sound far less robotic in short phrases). Resolves when finished, or at once
+ * if the browser has no voice for this language.
+ */
+export async function speak(text: string, locale: string, rate = 0.95): Promise<void> {
   if (!speechSupported().speak) return;
   speechSynthesis.cancel();
   const voice = await pickVoice(locale);
   if (!voice) return;
-  await new Promise<void>((resolve) => {
-    const u = new SpeechSynthesisUtterance(text);
-    u.voice = voice;
-    u.lang = voice.lang;
-    u.rate = rate;
-    u.pitch = 1.05;
-    // Chrome sometimes never fires onend for long text; keep a timeout guard.
-    const guard = setTimeout(resolve, 2500 + text.length * 120);
-    u.onend = u.onerror = () => {
-      clearTimeout(guard);
-      resolve();
-    };
-    speechSynthesis.speak(u);
-  });
+  const token = ++speakToken;
+  const parts = text.match(/[^.!?।|]+[.!?।|]*/g)?.map((x) => x.trim()).filter(Boolean) ?? [text];
+  for (const [i, part] of parts.entries()) {
+    if (token !== speakToken) return; // cancelled
+    await new Promise<void>((resolve) => {
+      const u = new SpeechSynthesisUtterance(part);
+      u.voice = voice;
+      u.lang = voice.lang;
+      u.rate = rate;
+      u.pitch = 1;
+      // Chrome sometimes never fires onend; keep a timeout guard.
+      const guard = setTimeout(resolve, 2000 + part.length * 130);
+      u.onend = u.onerror = () => { clearTimeout(guard); resolve(); };
+      speechSynthesis.speak(u);
+    });
+    if (i < parts.length - 1) await new Promise((r) => setTimeout(r, 180));
+  }
 }
 
 export function stopSpeaking() {
+  speakToken++;
   if (speechSupported().speak) speechSynthesis.cancel();
 }
 

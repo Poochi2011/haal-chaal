@@ -2,28 +2,30 @@
 // ANTHROPIC_API_KEY is set (e.g. judges running `docker compose up`), or if
 // the AI call fails mid-call. The whole flow still works end to end.
 
-import type { Ate, CallRecord, CallSummary, Family, Mood, Tri, Turn } from "./types";
+import type { Ate, CallRecord, CallSummary, DoseTime, Mood, Parent, Tri, Turn } from "./types";
+import { DOSE_HI } from "./types";
+import { hindiName } from "./prompt";
 import { detectEmergency } from "./safety";
 
 type Lang = "hi" | "en";
 
 const L = {
   hi: {
-    greet: (n: string) => `Namaste ${n}, main Haal-Chaal se bol rahi hoon. Aaj aapka din kaisa raha?`,
-    med: (m: string, t: string) => `Achha. Aapne ${t === "night" ? "raat" : t === "morning" ? "subah" : "aaj"} ki ${m} li?`,
-    food: "Aaj khana theek se khaya?",
-    sleep: "Aur kal raat neend theek aayi?",
-    follow: (c: string) => `Pichhli baar aapne ${c} ki baat ki thi. Ab kaisa hai?`,
-    free: "Aur kuch batana chahengi?",
-    message: (m: string) => `Ek khushkhabri hai. ${m}`,
-    bye: (n: string) => `Apna khayal rakhiye ${n}. Kal phir baat karenge. Namaste.`,
-    repeat: "Maaf kijiye, phir se bolenge?",
-    silence: "Kya aap mujhe sun pa rahi hain?",
-    emergency: "Main abhi aapke bachchon ko bata rahi hoon. Kripya kisi padosi ko bulaiye.",
+    greet: (n: string) => `नमस्ते ${n}, मैं हाल-चाल से बोल रही हूँ। आज आपका दिन कैसा रहा?`,
+    med: (m: string, t: DoseTime[]) => `अच्छा। आपने ${t.map((x) => DOSE_HI[x]).join(" और ")} की ${m} ली?`,
+    food: "आज खाना ठीक से खाया?",
+    sleep: "और कल रात नींद ठीक आई?",
+    follow: (c: string) => `पिछली बार आपने ${c === "knee pain" ? "घुटने के दर्द" : c} की बात की थी। अब कैसा है?`,
+    free: "और कुछ बताना चाहेंगी?",
+    message: (m: string) => `एक संदेश है। ${m}`,
+    bye: (n: string) => `अपना ख़याल रखिए ${n}। कल फिर बात करेंगे। नमस्ते।`,
+    repeat: "माफ़ कीजिए, फिर से बोलेंगी?",
+    silence: "क्या आप मुझे सुन पा रही हैं?",
+    emergency: "मैं अभी आपके बच्चों को बता रही हूँ। कृपया किसी पड़ोसी को बुलाइए।",
   },
   en: {
     greet: (n: string) => `Hello ${n}, this is Haal-Chaal calling. How was your day today?`,
-    med: (m: string, t: string) => `Okay. Did you take your ${t} ${m}?`,
+    med: (m: string, t: DoseTime[]) => `Okay. Did you take your ${t.join(" and ")} ${m}?`,
     food: "Did you eat properly today?",
     sleep: "And did you sleep well last night?",
     follow: (c: string) => `Last time you mentioned ${c}. How is it now?`,
@@ -37,17 +39,18 @@ const L = {
 };
 
 /** Builds the fixed list of questions for this family. */
-export function demoScript(family: Family, lastComplaint: string | null): string[] {
+export function demoScript(family: Parent, lastComplaint: string | null): string[] {
   const s = L[family.language === "en" ? "en" : "hi"];
-  const lines = [s.greet(family.callName)];
-  for (const m of family.medicines) lines.push(s.med(m.name, m.time));
+  const name = family.language === "en" ? family.callName : hindiName(family.callName);
+  const lines = [family.greeting.trim() || s.greet(name)];
+  for (const m of family.medicines) lines.push(s.med(m.name, m.times));
   lines.push(s.food, s.sleep);
   if (lastComplaint) lines.push(s.follow(lastComplaint));
   lines.push(s.free);
   return lines;
 }
 
-export function demoTurn(family: Family, transcript: Turn[], lastComplaint: string | null) {
+export function demoTurn(family: Parent, transcript: Turn[], lastComplaint: string | null) {
   const lang: Lang = family.language === "en" ? "en" : "hi";
   const s = L[lang];
   const lastParent = [...transcript].reverse().find((t) => t.role === "parent");
@@ -56,7 +59,7 @@ export function demoTurn(family: Family, transcript: Turn[], lastComplaint: stri
   }
   if (lastParent?.text === "[silence]") {
     const silences = transcript.filter((t) => t.text === "[silence]").length;
-    if (silences >= 2) return { say: s.bye(family.callName), end: true, emergency: false };
+    if (silences >= 2) return { say: s.bye(family.language === "en" ? family.callName : hindiName(family.callName)), end: true, emergency: false };
     return { say: s.silence, end: false, emergency: false };
   }
   const script = demoScript(family, lastComplaint);
@@ -64,7 +67,7 @@ export function demoTurn(family: Family, transcript: Turn[], lastComplaint: stri
   if (asked < script.length) return { say: script[asked], end: false, emergency: false };
   const parts = [];
   if (family.message.trim()) parts.push(s.message(family.message.trim()));
-  parts.push(s.bye(family.callName));
+  parts.push(s.bye(family.language === "en" ? family.callName : hindiName(family.callName)));
   return { say: parts.join(" "), end: true, emergency: false };
 }
 
@@ -92,7 +95,7 @@ const COMPLAINTS: [RegExp, string][] = [
   [/neend nahi|नींद नहीं|can'?t sleep/i, "trouble sleeping"],
 ];
 
-export function demoExtract(family: Family, transcript: Turn[], last?: CallRecord): CallSummary {
+export function demoExtract(family: Parent, transcript: Turn[], last?: CallRecord): CallSummary {
   // Pair each AI question with the parent reply that follows it.
   const answers: { q: string; a: string }[] = [];
   transcript.forEach((t, i) => {
@@ -104,11 +107,11 @@ export function demoExtract(family: Family, transcript: Turn[], last?: CallRecor
   const meds: Record<string, Tri> = {};
   for (const m of family.medicines) meds[m.id] = tri(find(new RegExp(m.name.split(" ")[0], "i")));
 
-  const foodA = find(/khana|eat/i);
+  const foodA = find(/khana|eat|खाना/i);
   let ate: Ate = tri(foodA) as Ate;
   if (foodA && PARTLY.test(foodA)) ate = "partly";
 
-  const slept = tri(find(/neend|sleep/i));
+  const slept = tri(find(/neend|sleep|नींद/i));
   const firstA = answers[0]?.a ?? "";
   const mood: Mood = LOW.test(all) ? "low" : GOOD.test(firstA) ? "good" : firstA ? "okay" : "unclear";
 

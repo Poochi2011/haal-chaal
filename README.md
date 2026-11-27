@@ -27,7 +27,7 @@ Local dev without Docker: `npm install && npm run dev`.
 
 ## Try it in 2 minutes
 
-1. Open the app → **Explore with a sample family** (Kamla Devi, 72, Lucknow, Hindi).
+1. Open the app → **Explore with a sample family**: two parents, Mummy-ji (Lucknow) and Papa (Kanpur), each with their own language, medicines and 6 days of calls.
 2. The dashboard shows her latest summary, medicines, mood, alerts and the week's trends.
 3. Tap **Call** → **Answer** and talk back out loud, as the parent would. Allow the microphone. You can also tap **Type** to type the answers.
 4. After the call, the summary, any alerts and the 7-day view update straight away.
@@ -71,3 +71,19 @@ Next.js server
 - `src/app/api/extract/route.ts`: structured extraction
 - `src/lib/insights.ts`: alerts and trends
 - `src/lib/demo.ts`: no-key demo mode
+
+## Real phone calls (optional)
+
+The call screen has an **In browser / Ring their phone** toggle. "Ring their phone" places a real call to the **parent's** number (from Family settings) through [Retell AI](https://retellai.com), which handles telephony, Indian-language speech recognition and a natural neural voice. Our server supplies the instructions, greeting and memory for each call, then reads the transcript back and builds the same summary.
+
+```bash
+# .env.local
+RETELL_API_KEY=...
+RETELL_FROM_NUMBER=+1...          # a number in your Retell account
+node scripts/setup-retell.mjs     # prints RETELL_AGENTS=..., add it to .env.local
+```
+
+Without these, the toggle is disabled and everything else works as before.
+
+## Images
+The parent portraits (`public/parent.jpg`, `public/father.jpg`) and the sunrise banner (`public/hero.jpg`) were generated with ChatGPT image generation for this prototype. They are not real people.

@@ -1,9 +1,9 @@
 // Turns the call history into what the family actually needs to see:
 // alerts (act now) and trends (slow changes a rushed phone call would miss).
 
-import type { CallRecord, Family, FamilyAlert } from "./types";
+import type { CallRecord, FamilyAlert, Parent } from "./types";
 
-export function computeAlerts(family: Family, calls: CallRecord[]): FamilyAlert[] {
+export function computeAlerts(family: Parent, calls: CallRecord[]): FamilyAlert[] {
   const alerts: FamilyAlert[] = [];
   const recent = [...calls].sort((a, b) => b.date.localeCompare(a.date));
   const last = recent[0];
@@ -13,7 +13,7 @@ export function computeAlerts(family: Family, calls: CallRecord[]): FamilyAlert[
     alerts.push({
       level: "red",
       title: `Serious symptom: ${last.summary?.emergencyReason ?? "needs attention"}`,
-      detail: `${family.callName} mentioned this on the ${prettyDate(last.date)} call. Please call her now or ask a neighbour to check on her.`,
+      detail: `${family.callName} mentioned this on the ${prettyDate(last.date)} call. Please call now, or ask a neighbour to check in person.`,
     });
   }
 
@@ -21,7 +21,7 @@ export function computeAlerts(family: Family, calls: CallRecord[]): FamilyAlert[
     alerts.push({
       level: "red",
       title: "No answer to today's call",
-      detail: `${family.callName} did not answer after two tries. Please call her or a neighbour.`,
+      detail: `${family.callName} did not answer after two tries. Please call, or ask a neighbour to check.`,
     });
   }
 
@@ -33,7 +33,7 @@ export function computeAlerts(family: Family, calls: CallRecord[]): FamilyAlert[
         alerts.push({
           level: "red",
           title: `${med.name} missed two days in a row`,
-          detail: "A reminder from you may help. Ask whether she has run out or is having side effects.",
+          detail: "A reminder from you may help. Ask whether it has run out or is causing side effects.",
         });
       }
     }
@@ -43,7 +43,7 @@ export function computeAlerts(family: Family, calls: CallRecord[]): FamilyAlert[
     alerts.push({
       level: "amber",
       title: "Did not eat today",
-      detail: "She said she has not eaten. Worth a quick call.",
+      detail: `${family.callName} said they have not eaten. Worth a quick call.`,
     });
   }
 
@@ -86,6 +86,6 @@ export function memoryNotes(calls: CallRecord[]): string {
     .sort((a, b) => b.date.localeCompare(a.date))
     .filter((c) => c.summary)
     .slice(0, 3)
-    .map((c) => `${prettyDate(c.date)}: ${c.summary!.summary} Highlight: ${c.summary!.highlight}`)
+    .map((c) => `${prettyDate(c.date)}: ${c.summary!.summary}${c.summary!.highlight ? ` Highlight: ${c.summary!.highlight}` : ""}`)
     .join("\n");
 }
