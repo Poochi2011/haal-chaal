@@ -91,8 +91,5 @@ If a parent mentions chest pain, breathlessness, a fall or fainting (caught by b
 ## Missed calls
 A missed call is retried every 10 minutes, up to 4 attempts in total. One missed call only shows a gentle note ("might just be busy"); if all 4 go unanswered, the dashboard shows a red alert and the family member gets an alert call. (In this prototype the retries run while the call screen is open; in the demo, "Skip the 10-minute wait" shows the whole flow.)
 
-## Demo PIN
-Real phone calls cost money, so on the public demo they need a PIN (`PHONE_DEMO_PIN`). The in-browser call works for everyone without it.
-
 ## Images
 The parent portraits (`public/parent.jpg`, `public/father.jpg`) and the sunrise banner (`public/hero.jpg`) were generated with ChatGPT image generation for this prototype. They are not real people.
