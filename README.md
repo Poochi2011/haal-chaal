@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Haal-Chaal
 
-## Getting Started
+**A daily voice check-in call for elderly parents who live alone, in their own language.**
 
-First, run the development server:
+Every evening Haal-Chaal calls the parent. A warm voice asks about their day, their medicines (by the names the family uses), food and sleep. It remembers yesterday ("you mentioned knee pain, how is it today?") and passes on a message from the family. The parent installs nothing, reads nothing and types nothing. They just answer and talk.
+
+Their children, usually in another city, get a short daily summary, a 7-day health view, and alerts when something is wrong: a medicine missed two days running, a serious symptom, or no answer.
+
+Built for **Build for Bharat · India Runs on Voice** (Scaler × Wispr Flow), Round 2. Theme: **Healthcare access**.
+
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up --build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open **http://localhost:3000** in Chrome. No keys are needed: without an API key the app runs in **demo mode**, with a scripted Hindi/English call and a rule-based summary.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+For the live AI conversation in 10 languages, set a key first:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+cp .env.example .env    # then put your Anthropic key in it
+docker compose --env-file .env up --build
+```
 
-## Learn More
+Local dev without Docker: `npm install && npm run dev`.
 
-To learn more about Next.js, take a look at the following resources:
+## Try it in 2 minutes
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Open the app → **Explore with a sample family** (Kamla Devi, 72, Lucknow, Hindi).
+2. The dashboard shows her latest summary, medicines, mood, alerts and the week's trends.
+3. Tap **Call** → **Answer** and talk back out loud, as the parent would. Allow the microphone. You can also tap **Type** to type the answers.
+4. After the call, the summary, any alerts and the 7-day view update straight away.
+5. Try saying *"seene mein dard ho raha hai"* (chest pain) to see the emergency path.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## How it works
 
-## Deploy on Vercel
+```
+Browser (Chrome)
+ ├─ /welcome   onboarding: parent, language (10 Indian languages), medicines
+ ├─ /call      the parent's call: speech-to-text → AI turn → text-to-speech, live captions
+ ├─ /          family dashboard: summary, checks, alerts, message for the next call
+ ├─ /calls     history with transcripts
+ └─ /health    7-day grid + slow-change trends
+        │
+        ▼
+Next.js server
+ ├─ POST /api/turn     next line of the conversation (Claude Haiku 5.5, forced JSON via tool)
+ └─ POST /api/extract  call → medicines / food / sleep / mood / complaints / emergency
+        └─ no key or AI error → demo script + rule-based extraction (src/lib/demo.ts)
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+| Part | What we use | If it fails |
+|---|---|---|
+| Listening | Browser Web Speech API (hi-IN, ta-IN, bn-IN…) | Switches to typed answers |
+| Conversation and summary | Claude Haiku 5.5 (`claude-haiku-5-5`) | Scripted call + rule-based summary |
+| Speaking | Browser speech synthesis, Indian voices | Captions only, with a notice |
+| Emergency detection | Rule-based patterns (`src/lib/safety.ts`) **and** the AI | The rules always run, even offline |
+| Storage | Browser localStorage (prototype) | Not applicable |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Safety rules
+- It never guesses. A missing or unclear answer is stored as **unclear**.
+- It never gives medical advice or changes doses.
+- Chest pain, breathlessness, a fall or dizziness stops the routine, tells the parent their family is being informed, and raises a red alert. Rules can only *add* an emergency, never remove one.
+- It asks again on low-confidence speech and gently re-asks after silence. Two silences end the call and alert the family.
+
+## Code map
+- `src/lib/speech.ts`: listening with pause tolerance for elderly speakers, voice selection
+- `src/app/call/page.tsx`: the call loop
+- `src/app/api/turn/route.ts`: conversation prompt, memory, language and script control
+- `src/app/api/extract/route.ts`: structured extraction
+- `src/lib/insights.ts`: alerts and trends
+- `src/lib/demo.ts`: no-key demo mode

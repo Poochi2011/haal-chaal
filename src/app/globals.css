@@ -1,26 +1,77 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* Haal-Chaal design tokens, sampled from the inspiration comps:
+   warm cream page, deep navy chrome, lavender AI surfaces, peach alerts. */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-cream: #fbf6f1;
+  --color-cream-2: #f6ede4;
+  --color-ink: #141a3a;          /* headings */
+  --color-ink-2: #3c4466;        /* body text */
+  --color-muted: #6b7290;
+  --color-navy: #1f2747;         /* sidebar */
+  --color-navy-2: #2c355c;
+  --color-line: #ece4dc;
+  --color-lav: #f1edfc;          /* AI summary card */
+  --color-lav-2: #e4ddfb;
+  --color-iris: #5b4fd6;         /* AI accent */
+  --color-leaf: #2f9e4f;         /* good */
+  --color-leaf-soft: #def3d9;
+  --color-amber: #e07b24;        /* alerts */
+  --color-peach: #fdeee2;
+  --color-peach-2: #fbe1cc;
+  --color-alarm: #d23c2c;        /* urgent */
+  --color-alarm-soft: #fde4e0;
+
+  --font-sans: var(--font-jakarta), var(--font-deva), ui-sans-serif, system-ui, sans-serif;
+
+  --shadow-card: 0 1px 2px rgba(20, 26, 58, 0.04), 0 8px 24px -12px rgba(20, 26, 58, 0.12);
+  --radius-card: 22px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html, body {
+  background: var(--color-cream);
+  color: var(--color-ink-2);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer components {
+  .card {
+    background: #fffdfb;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+  }
+}
+
+/* Gentle entrance used across cards. */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.rise { animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.rise-1 { animation-delay: 0.05s; }
+.rise-2 { animation-delay: 0.1s; }
+.rise-3 { animation-delay: 0.15s; }
+.rise-4 { animation-delay: 0.2s; }
+
+/* Call screen: breathing rings around the caller avatar. */
+@keyframes ring {
+  0% { transform: scale(0.9); opacity: 0.55; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.pulse-ring { animation: ring 2.2s ease-out infinite; }
+.pulse-ring.delay { animation-delay: 1.1s; }
+
+@keyframes bar {
+  0%, 100% { transform: scaleY(0.3); }
+  50% { transform: scaleY(1); }
+}
+.wave-bar { animation: bar 0.9s ease-in-out infinite; transform-origin: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .pulse-ring, .wave-bar { animation: none !important; }
 }

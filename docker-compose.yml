@@ -1,0 +1,9 @@
+services:
+  haal-chaal:
+    build: .
+    ports:
+      - 3000:3000
+    environment:
+      # Optional. Without a key the app runs in demo mode (scripted call, rule-based summary).
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    restart: unless-stopped
