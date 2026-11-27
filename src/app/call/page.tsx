@@ -177,6 +177,15 @@ export default function CallPage() {
         const st = await fetch(`/api/phone/status?id=${encodeURIComponent(callId)}`).then((r) => r.json());
         if (st.status === "ongoing") setPhase("live");
         if (st.transcript?.length) { transcript.current = st.transcript; setTurns(st.transcript); }
+        if (st.done && st.failed) {
+          // The call never went through: tell the user why, and don't log a "missed call".
+          ended.current = true;
+          setError(`Couldn't place the call: ${st.failMessage ?? st.reason}`);
+          transcript.current = [];
+          setTurns([]);
+          setPhase("ringing");
+          return;
+        }
         if (st.done) {
           await finish({ emergency: false, via: "phone", answered: Boolean(st.answered), durationSec: st.durationSec });
           return;
@@ -214,7 +223,7 @@ export default function CallPage() {
     setPhase("done");
   };
 
-  const start = () => { setError(null); if (mode === "phone") void runPhoneCall(); else void runBrowserCall(); };
+  const start = () => { setError(null); ended.current = false; if (mode === "phone") void runPhoneCall(); else void runBrowserCall(); };
   const hangUp = () => {
     if (phase === "ringing") { void finish({ emergency: false, via: "browser", declined: true }); return; }
     if (mode === "phone") { ended.current = true; setResult(null); setPhase("done"); return; }
