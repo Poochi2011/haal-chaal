@@ -28,7 +28,7 @@ Local dev without Docker: `npm install && npm run dev`.
 ## Try it in 2 minutes
 
 1. Open the app → **Explore with a sample family**: two parents, Mummy-ji (Lucknow) and Papa (Kanpur), each with their own language, medicines and 6 days of calls.
-2. The dashboard shows her latest summary, medicines, mood, alerts and the week's trends.
+2. The dashboard shows each parent's latest summary, medicines, mood, alerts and the week's trends. Switch parents with the pills at the top.
 3. Tap **Call** → **Answer** and talk back out loud, as the parent would. Allow the microphone. You can also tap **Type** to type the answers.
 4. After the call, the summary, any alerts and the 7-day view update straight away.
 5. Try saying *"seene mein dard ho raha hai"* (chest pain) to see the emergency path.
