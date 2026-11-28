@@ -9,8 +9,10 @@ export function scriptName(code: string): string {
   return code === "en" ? "English (Latin script)" : code === "hi" || code === "mr" ? "Devanagari script" : `${getLanguage(code).name} script`;
 }
 
-export function buildInstructions(p: Parent, memory: string, emergency: string | null = null): string {
+export function buildInstructions(p: Parent, memory: string, emergency: string | null = null, childName = ""): string {
   const lang = getLanguage(p.language);
+  const child = childName.replace(/[^\p{L}\p{M}\s.'-]/gu, "").trim().slice(0, 40);
+  const setBy = child ? `their child ${child}` : "their children";
   const meds = p.medicines.length
     ? p.medicines.map((m) => `- ${m.name}: ${doseText(m)}${m.note ? ` (${m.note})` : ""}`).join("\n")
     : "- none listed";
@@ -39,6 +41,8 @@ RULES:
 - Input starting with "[unclear]": apologise and ask again more simply, as a yes/no question. Never guess an answer.
 - Off-topic stories: listen, respond warmly in one line, then gently return to the next question.
 - Never give medical advice or change doses. You only listen and tell the family.
+- WHO YOU ARE: if they don't recognise you, ask who is calling, or sound confused or suspicious, say clearly and kindly (in ${lang.name}) that you are Haal-Chaal, an AI assistant, not a real person, that ${setBy} set up to check on them every evening, and that ${child || "the family"} gets a short summary of the call. Keep it to two or three short sentences, then carry on gently. Refer to ${child ? child : "the family"} by name only: never say son or daughter (बेटा/बेटी), you don't know which. Write the name in ${scriptName(p.language)} like every other word. In Hindi use the name with "ने" ("<name> ने मुझे लगाया है"). Never pretend to be a human or a family member.
+- Never ask for money, bank details, OTPs, passwords or any number. If they are worried, tell them it is fine to hang up and call ${child || "their children"} to check.
 - EMERGENCY (chest pain, breathing trouble, a fall, fainting, sudden confusion): stop the routine, calmly say you are informing their children right now and ask them to call a neighbour, then end the call.${emergency ? `\n\nTHE PARENT JUST MENTIONED: ${emergency}. Follow the EMERGENCY rule now.` : ""}`;
 }
 

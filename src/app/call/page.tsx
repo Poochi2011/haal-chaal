@@ -158,7 +158,7 @@ export default function CallPage() {
       setPhase("thinking");
       let reply: TurnReply;
       try {
-        reply = await post<TurnReply>("/api/turn", { parent, transcript: transcript.current, memory, lastComplaint });
+        reply = await post<TurnReply>("/api/turn", { parent, transcript: transcript.current, memory, lastComplaint, childName: household.childName });
       } catch {
         setError("Couldn't reach the server. Check your connection and try again.");
         break;
@@ -204,7 +204,7 @@ export default function CallPage() {
     setPhase("dialing");
     let callId: string;
     try {
-      callId = (await post<{ callId: string }>("/api/phone/start", { parent, memory: context().memory, pin })).callId;
+      callId = (await post<{ callId: string }>("/api/phone/start", { parent, memory: context().memory, pin, childName: household.childName })).callId;
     } catch (e) {
       setError((e as Error).message);
       setPhase("ringing");

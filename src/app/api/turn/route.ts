@@ -14,6 +14,7 @@ interface Body {
   transcript: Turn[];
   memory: string;
   lastComplaint: string | null;
+  childName?: string;
 }
 
 const REPLY_SCHEMA = {
@@ -44,7 +45,7 @@ async function nativeGreeting(client: Anthropic | null, p: Parent): Promise<stri
 }
 
 export async function POST(req: Request) {
-  const { parent, transcript, memory, lastComplaint } = (await req.json()) as Body;
+  const { parent, transcript, memory, lastComplaint, childName } = (await req.json()) as Body;
   const client = getClient();
 
   // Opening line: the family's own greeting, or our default.
@@ -84,7 +85,7 @@ export async function POST(req: Request) {
 
   try {
     const r = await structured<{ say: string; end: boolean; emergency: boolean }>(client, {
-      system: buildInstructions(parent, memory, ruleEmergency) + "\n\nAnswer with the respond tool.",
+      system: buildInstructions(parent, memory, ruleEmergency, childName ?? "") + "\n\nAnswer with the respond tool.",
       messages,
       maxTokens: 400,
       schema: REPLY_SCHEMA,

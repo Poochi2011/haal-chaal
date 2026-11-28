@@ -11,6 +11,7 @@ interface Body {
   parent: Parent;
   memory: string;
   pin?: string;
+  childName?: string;
 }
 
 async function greetingFor(p: Parent): Promise<string> {
@@ -35,7 +36,7 @@ async function greetingFor(p: Parent): Promise<string> {
 export async function POST(req: Request) {
   const cfg = retellConfig();
   if (!cfg) return Response.json({ error: "Real phone calls are not set up on this server." }, { status: 503 });
-  const { parent, memory, pin } = (await req.json()) as Body;
+  const { parent, memory, pin, childName } = (await req.json()) as Body;
   // On the public demo, real (paid) calls need a PIN so strangers can't run up the bill.
   const requiredPin = process.env.PHONE_DEMO_PIN?.trim();
   if (requiredPin && pin?.trim() !== requiredPin) {
@@ -55,7 +56,7 @@ export async function POST(req: Request) {
         to_number: to,
         override_agent_id: agent,
         retell_llm_dynamic_variables: {
-          instructions: buildInstructions(parent, memory),
+          instructions: buildInstructions(parent, memory, null, childName ?? ""),
           greeting: await greetingFor(parent),
         },
         metadata: { parentId: String(parent.id).slice(0, 40), app: "haal-chaal", client: limit.client },
