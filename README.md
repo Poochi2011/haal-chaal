@@ -85,6 +85,8 @@ node scripts/setup-retell.mjs     # prints RETELL_AGENTS=..., add it to .env.loc
 
 Without these, the toggle is disabled and everything else works as before.
 
+**Call failsafes** (`scripts/retell-settings.mjs`, applied with `node --env-file=.env.local scripts/update-retell.mjs`): the agent has a hang-up tool and rules for using it (after the goodbye, when the parent is busy, when it can't be heard twice in a row, when about four exchanges get nowhere, on reaching an answering machine, and after an emergency message). It waits 0.8 s after pickup before speaking, checks in after 8 s of quiet, hangs up after 20 s of silence, stops ringing after 40 s, and no call can run past 6 minutes. Voicemail gets a short message, or the full alert on an emergency call. A call where the parent only said "hello?" or nothing clear counts as not answered, so the normal retry runs.
+
 **Rate limits.** Real calls cost money and ring real people, so `src/lib/ratelimit.ts` caps them (browser calls are not limited): per visitor 6 calls in 10 minutes and 25 a day, per phone number 4 in 10 minutes and 15 a day, and for the whole app 40 an hour and 200 a day. The counts come from Retell's own call log, so they hold across serverless instances without a database, with an in-memory check in front for bursts. Visitors are counted by a salted hash, never the raw IP. The emergency alert line also caps every field it reads aloud.
 
 ## Emergency escalation

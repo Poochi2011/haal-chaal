@@ -6,6 +6,8 @@
 //
 // Usage: RETELL_API_KEY=... node scripts/setup-retell.mjs
 
+import { AGENT_FAILSAFES, LLM_SETTINGS } from "./retell-settings.mjs";
+
 const KEY = process.env.RETELL_API_KEY;
 if (!KEY) {
   console.error("Set RETELL_API_KEY first.");
@@ -35,8 +37,7 @@ if (!pick) throw new Error("No female voice found in this Retell account.");
 console.error(`Voice: ${pick.voice_name} (${pick.voice_id}, ${pick.provider}, accent: ${pick.accent ?? "n/a"})`);
 
 const llm = await api("/create-retell-llm", {
-  general_prompt: "{{instructions}}",
-  begin_message: "{{greeting}}",
+  ...LLM_SETTINGS,
   default_dynamic_variables: { instructions: "You are Haal-Chaal, a warm check-in caller. Speak Hindi.", greeting: "नमस्ते, मैं हाल-चाल से बोल रही हूँ।" },
 });
 console.error(`LLM: ${llm.llm_id}`);
@@ -51,11 +52,8 @@ for (const [code, locale] of Object.entries(LANGS)) {
       language: locale,
       voice_speed: 0.95,
       responsiveness: 0.8,
-      interruption_sensitivity: 0.5,
-      begin_message_delay_ms: 800,
       enable_backchannel: true,
-      end_call_after_silence_ms: 20000,
-      max_call_duration_ms: 6 * 60 * 1000,
+      ...AGENT_FAILSAFES,
     });
     agents[code] = a.agent_id;
     console.error(`Agent ${code} (${locale}): ${a.agent_id}`);

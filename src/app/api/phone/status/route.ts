@@ -24,6 +24,16 @@ const SETUP_FAIL: Record<string, string> = {
   marked_as_spam: "The caller number is flagged as spam.",
 };
 
+// Did a real conversation happen? Count the parent's words that aren't "hello?", "haan?", fillers
+// or noise. Under 4 such words in the whole call (e.g. they couldn't hear the agent and kept saying
+// "hello?") counts as not answered, so the normal retry kicks in instead of logging an empty check-in.
+const FILLER = new Set(["hello", "hallo", "helo", "hi", "haan", "han", "ha", "haa", "hmm", "hm", "ji", "unintelligible", "audio", "yes", "ok", "okay",
+  "हैलो", "हेलो", "हलो", "हाँ", "हां", "हा", "जी", "हम्म", "हम"]);
+const hadRealConversation = (t: Turn[]) =>
+  t.filter((u) => u.role === "parent")
+    .flatMap((u) => u.text.toLowerCase().replace(/[^\p{L}\p{M}\p{N}\s]/gu, " ").split(/\s+/))
+    .filter((w) => w && !FILLER.has(w)).length >= 4;
+
 const NO_ANSWER = ["dial_no_answer", "dial_busy", "dial_failed", "user_declined", "voicemail_reached", "invalid_destination", "error_user_not_joined"];
 
 export async function GET(req: Request) {
@@ -39,7 +49,7 @@ export async function GET(req: Request) {
     return Response.json({
       status: c.call_status,
       done,
-      answered: done ? !NO_ANSWER.includes(c.disconnection_reason ?? "") && transcript.some((t) => t.role === "parent") : null,
+      answered: done ? !NO_ANSWER.includes(c.disconnection_reason ?? "") && hadRealConversation(transcript) : null,
       reason: c.disconnection_reason ?? null,
       failed: done && (c.call_status === "error" || (c.disconnection_reason ?? "") in SETUP_FAIL || (c.disconnection_reason ?? "").startsWith("error_")),
       failMessage: SETUP_FAIL[c.disconnection_reason ?? ""] ?? (c.call_status === "error" || (c.disconnection_reason ?? "").startsWith("error_") ? "The call failed on the calling service. Try again." : null),
