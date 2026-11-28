@@ -85,6 +85,8 @@ node scripts/setup-retell.mjs     # prints RETELL_AGENTS=..., add it to .env.loc
 
 Without these, the toggle is disabled and everything else works as before.
 
+**Rate limits.** Real calls cost money and ring real people, so `src/lib/ratelimit.ts` caps them (browser calls are not limited): per visitor 6 calls in 10 minutes and 25 a day, per phone number 4 in 10 minutes and 15 a day, and for the whole app 40 an hour and 200 a day. The counts come from Retell's own call log, so they hold across serverless instances without a database, with an in-memory check in front for bursts. Visitors are counted by a salted hash, never the raw IP. The emergency alert line also caps every field it reads aloud.
+
 ## Emergency escalation
 If a parent mentions chest pain, breathlessness, a fall or fainting (caught by both the AI and rule-based patterns in `src/lib/safety.ts`), Haal-Chaal immediately **rings the family member's own phone** with a short spoken alert (`/api/phone/alert`), at most once per parent every 10 minutes. The family member's number is set during onboarding or in Family settings.
 

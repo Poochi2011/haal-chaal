@@ -4,6 +4,7 @@
 import { getClient, structured } from "@/lib/ai";
 import { buildInstructions, defaultGreeting, fixHindiPronunciation, scriptName } from "@/lib/prompt";
 import { retell, retellConfig, toE164 } from "@/lib/retell";
+import { checkCallLimit, limitResponse } from "@/lib/ratelimit";
 import type { Parent } from "@/lib/types";
 
 interface Body {
@@ -43,6 +44,8 @@ export async function POST(req: Request) {
 
   const to = toE164(parent.phone || "");
   if (!to) return Response.json({ error: `Add ${parent.callName}'s phone number in Family settings first.` }, { status: 400 });
+  const limit = await checkCallLimit(req, cfg, to);
+  if (!limit.ok) return limitResponse(limit);
   const agent = cfg.agents[parent.language] ?? cfg.agents.hi ?? Object.values(cfg.agents)[0];
 
   try {
@@ -55,7 +58,7 @@ export async function POST(req: Request) {
           instructions: buildInstructions(parent, memory),
           greeting: await greetingFor(parent),
         },
-        metadata: { parentId: parent.id, app: "haal-chaal" },
+        metadata: { parentId: String(parent.id).slice(0, 40), app: "haal-chaal", client: limit.client },
       },
     });
     return Response.json({ callId: call.call_id, to: to.slice(0, -4).replace(/\d/g, "•") + to.slice(-4) });

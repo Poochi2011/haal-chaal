@@ -2,6 +2,10 @@
 // spoken alert as soon as a serious symptom comes up on a parent's call.
 
 import { retell, retellConfig, toE164 } from "@/lib/retell";
+import { checkCallLimit, limitResponse } from "@/lib/ratelimit";
+
+// Everything below is read aloud on a real call, so keep each field short and plain.
+const clean = (v: unknown, max: number) => String(v ?? "").replace(/[\u0000-\u001f<>{}]/g, " ").replace(/\s+/g, " ").trim().slice(0, max);
 
 interface Body {
   childName: string;
@@ -17,13 +21,25 @@ interface Body {
 export async function POST(req: Request) {
   const cfg = retellConfig();
   if (!cfg) return Response.json({ error: "Phone calls are not set up on this server." }, { status: 503 });
-  const b = (await req.json()) as Body;
+  const raw = (await req.json()) as Body;
+  const b: Body = {
+    ...raw,
+    childName: clean(raw.childName, 40),
+    parentName: clean(raw.parentName, 40) || "your parent",
+    reason: clean(raw.reason, 60) || "a serious symptom",
+    said: raw.said ? clean(raw.said, 140) : undefined,
+    kind: raw.kind === "missed" ? "missed" : "symptom",
+    attempts: Math.min(10, Math.max(1, Number(raw.attempts) || 4)),
+  };
   const requiredPin = process.env.PHONE_DEMO_PIN?.trim();
   if (requiredPin && b.pin?.trim() !== requiredPin) {
     return Response.json({ error: "Demo PIN needed for the emergency call." }, { status: 403 });
   }
   const to = toE164(b.childPhone || "");
   if (!to) return Response.json({ error: "Add your phone number in Family settings to get emergency calls." }, { status: 400 });
+
+  const limit = await checkCallLimit(req, cfg, to);
+  if (!limit.ok) return limitResponse(limit);
 
   const alert = b.kind === "missed"
     ? `This is an alert from Haal-Chaal. We called ${b.parentName} ${b.attempts ?? 4} times today, ten minutes apart, and nobody picked up. Please call ${b.parentName} yourself, or ask a neighbour to check on them.`
@@ -38,7 +54,7 @@ export async function POST(req: Request) {
         to_number: to,
         override_agent_id: cfg.agents.en ?? Object.values(cfg.agents)[0],
         retell_llm_dynamic_variables: { instructions, greeting: `${alert} ${repeat}` },
-        metadata: { app: "haal-chaal", kind: "emergency-alert" },
+        metadata: { app: "haal-chaal", kind: "emergency-alert", client: limit.client },
       },
     });
     return Response.json({ callId: call.call_id });
