@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Heart, Keyboard, Mic, Monitor, Phone, PhoneOff, Send, Smartphone, Sparkles } from "lucide-react";
+import { ArrowLeft, ChevronRight, Heart, Keyboard, Mic, Monitor, Phone, PhoneOff, Send, Smartphone, Sparkles } from "lucide-react";
 import { Avatar } from "@/components/bits";
 import { LANGUAGES, getLanguage } from "@/lib/languages";
 import { memoryNotes } from "@/lib/insights";
@@ -44,6 +44,8 @@ export default function CallPage() {
   const [household, setHousehold] = useState<Household | null>(null);
   const [parent, setParent] = useState<Parent | null>(null);
   const [mode, setMode] = useState<Mode>("browser");
+  // Nothing rings until the user picks how to try the call (demo here, or their real phone).
+  const [picked, setPicked] = useState(false);
   const [phoneReady, setPhoneReady] = useState<boolean | null>(null);
   const [phoneLangs, setPhoneLangs] = useState<string[]>([]);
   const [pinRequired, setPinRequired] = useState(false);
@@ -313,7 +315,15 @@ export default function CallPage() {
   const mm = String(Math.floor(seconds / 60)).padStart(2, "0");
   const ss = String(seconds % 60).padStart(2, "0");
   const inCall = phase !== "ringing" && phase !== "done" && phase !== "saving" && phase !== "retrying";
+  const choosing = phase === "ringing" && !picked;
   const big = phase === "ringing";
+  const pick = (m: Mode) => { setMode(m); setError(null); setPicked(true); };
+  const phoneBlocked = phoneReady === false
+    ? "Real phone calls aren't switched on for this server."
+    : phoneReady === null ? "Checking…"
+    : !parent.phone ? `Add ${parent.callName}'s number in Family settings first.`
+    : !langOnPhone ? `Real calls don't support ${lang.name} yet (Hindi, English, Marathi, Tamil and Kannada do).`
+    : null;
   const maskedPhone = parent.phone ? `${parent.phone.slice(0, -4).replace(/\d/g, "•")}${parent.phone.slice(-4)}` : "";
 
   return (
@@ -335,7 +345,7 @@ export default function CallPage() {
       <div className="mx-auto flex w-full max-w-xl flex-1 flex-col px-4 sm:px-5">
         <div className={`flex flex-col items-center text-center transition-all duration-500 ${big ? "mt-6 sm:mt-[6vh]" : "mt-4"}`}>
           <div className="relative">
-            {(big || phase === "speaking" || phase === "dialing") && (
+            {((big && !choosing) || phase === "speaking" || phase === "dialing") && (
               <>
                 <span className="pulse-ring absolute inset-0 rounded-full bg-leaf/40" />
                 <span className="pulse-ring delay absolute inset-0 rounded-full bg-leaf/30" />
@@ -351,16 +361,18 @@ export default function CallPage() {
           </div>
           <p className={`mt-4 font-semibold ${big ? "text-[26px] sm:text-[30px]" : "text-[20px]"}`}>{mode === "phone" ? parent.callName : "Haal-Chaal"}</p>
           <p className="mt-0.5 text-[15px] text-white/65">
-            {big
+            {choosing
+              ? `How do you want to try ${parent.callName}'s call?`
+              : big
               ? (attempt > 1 ? `Retry ${attempt - 1} of ${MAX_ATTEMPTS - 1} · ` : "") + (mode === "phone" ? `We'll ring ${parent.callName}'s phone · ${lang.native}` : `Demo of ${parent.callName}'s daily call · ${lang.native}`)
               : phase === "done" ? "Call ended" : `${mm}:${ss} · ${PHASE_LABEL[phase]}`}
           </p>
         </div>
 
-        {phase === "ringing" && (
+        {choosing && (
           <div className="mt-auto pb-8 pt-6">
             {household.parents.length > 1 && (
-              <div className="mb-4 flex flex-wrap justify-center gap-2" role="tablist" aria-label="Who to call">
+              <div className="mb-5 flex flex-wrap justify-center gap-2" role="tablist" aria-label="Who to call">
                 {household.parents.map((p) => (
                   <button key={p.id} role="tab" aria-selected={p.id === parent.id} onClick={() => choose(p)} className={`flex items-center gap-2 rounded-full py-1 pl-1 pr-3.5 text-[14px] font-semibold ${p.id === parent.id ? "bg-white text-navy" : "bg-white/10 text-white/80"}`}>
                     <Avatar parent={p} className="h-7 w-7" textClass="text-[11px]" /> {p.callName}
@@ -368,15 +380,41 @@ export default function CallPage() {
                 ))}
               </div>
             )}
-
-            <div className="mx-auto mb-3 grid max-w-sm grid-cols-2 gap-1 rounded-2xl bg-white/10 p-1" role="tablist" aria-label="Call type">
-              <button role="tab" aria-selected={mode === "browser"} onClick={() => setMode("browser")} className={`flex items-center justify-center gap-2 rounded-xl px-2 py-2.5 text-[14px] font-semibold ${mode === "browser" ? "bg-white text-navy" : "text-white/75"}`}>
-                <Monitor className="h-4 w-4 shrink-0" /> Demo here
+            <div className="mx-auto flex max-w-sm flex-col gap-3">
+              <button onClick={() => pick("browser")} className="flex items-center gap-4 rounded-[22px] bg-white p-4 text-left text-ink shadow-lg transition hover:bg-cream">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-lav text-iris"><Monitor className="h-6 w-6" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[16px] font-bold">Try the demo here</span>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-muted">You play {parent.callName} and talk back in this browser. No real call is made.</span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
               </button>
-              <button role="tab" aria-selected={mode === "phone"} onClick={() => phoneAllowed && setMode("phone")} disabled={!phoneAllowed} className={`flex items-center justify-center gap-2 rounded-xl px-2 py-2.5 text-[14px] font-semibold disabled:opacity-45 ${mode === "phone" ? "bg-white text-navy" : "text-white/75"}`}>
-                <Smartphone className="h-4 w-4 shrink-0" /> Ring their phone
+              <button onClick={() => !phoneBlocked && pick("phone")} disabled={Boolean(phoneBlocked)} className="flex items-center gap-4 rounded-[22px] bg-white p-4 text-left text-ink shadow-lg transition hover:bg-cream disabled:cursor-not-allowed disabled:bg-white/60">
+                <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-leaf-soft text-leaf"><Smartphone className="h-6 w-6" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[16px] font-bold">Ring {parent.callName}&apos;s real phone</span>
+                  <span className="mt-0.5 block text-[13px] leading-snug text-muted">
+                    {phoneBlocked ?? `A real call to ${maskedPhone}. You'll confirm before it rings.`}
+                  </span>
+                </span>
+                {!phoneBlocked && <ChevronRight className="h-5 w-5 shrink-0 text-muted" />}
               </button>
+              {phoneBlocked && !parent.phone && phoneReady && (
+                <Link href="/family" className="mx-auto text-[13px] font-semibold text-white/80 underline">Add {parent.callName}&apos;s number to ring their real phone</Link>
+              )}
             </div>
+          </div>
+        )}
+
+        {phase === "ringing" && !choosing && (
+          <div className="mt-auto pb-8 pt-6">
+
+            {attempt === 1 && (
+              <button onClick={() => { setPicked(false); setError(null); }} className="mx-auto mb-3 flex items-center gap-1.5 rounded-full bg-white/10 px-3.5 py-1.5 text-[13px] font-semibold text-white/80 hover:bg-white/15">
+                {mode === "phone" ? <Smartphone className="h-3.5 w-3.5" /> : <Monitor className="h-3.5 w-3.5" />}
+                {mode === "phone" ? "Real phone call" : "Demo here"} · Change
+              </button>
+            )}
             <p className="mx-auto mb-6 max-w-sm text-center text-[13px] leading-relaxed text-white/55">
               {mode === "phone"
                 ? `A real call to ${parent.callName}'s phone (${maskedPhone}). You can watch it from here.`
